@@ -1,0 +1,26 @@
+1<?xml version="1.0" encoding="utf-8"?>
+2<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+3    package="com.example.notification_agent.bank" >
+4
+5    <uses-sdk android:minSdkVersion="30" />
+5-->INJECTED
+5-->INJECTED
+6
+7    <application>
+7-->/Users/linus/AndroidStudioProjects/notificationagent/configui/src/main/AndroidManifest.xml:4:5-11:19
+8
+9        <!--
+10             Compose-based multi-bank endpoint configuration. Inherits the host
+11             application theme via manifest merge.
+12        -->
+13        <activity
+13-->/Users/linus/AndroidStudioProjects/notificationagent/configui/src/main/AndroidManifest.xml:7:9-10:58
+14            android:name="com.example.notification_agent.bank.BankConfigActivity"
+14-->/Users/linus/AndroidStudioProjects/notificationagent/configui/src/main/AndroidManifest.xml:8:13-47
+15            android:exported="false"
+15-->/Users/linus/AndroidStudioProjects/notificationagent/configui/src/main/AndroidManifest.xml:9:13-37
+16            android:label="@string/title_bank_configs" />
+16-->/Users/linus/AndroidStudioProjects/notificationagent/configui/src/main/AndroidManifest.xml:10:13-55
+17    </application>
+18
+19</manifest>

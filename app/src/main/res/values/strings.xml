@@ -1,0 +1,94 @@
+<resources>
+    <string name="app_name">Notification Agent</string>
+    <string name="action_settings">Settings</string>
+
+    <!-- Bottom navigation / fragment titles -->
+    <string name="title_status">Status</string>
+    <string name="title_messages">Messages</string>
+    <string name="title_settings">Settings</string>
+    <string name="title_notification_filters">Notification Filters</string>
+    <string name="title_sms_filters">SMS Filters</string>
+
+    <!-- Filter rows -->
+    <string name="forward_to_webhook">Forward to webhook</string>
+
+    <!-- Settings -->
+    <string name="settings_section_webhook">Webhook</string>
+    <string name="settings_webhook_enabled">Enable webhook forwarding</string>
+    <string name="settings_webhook_url">Webhook URL (http/https)</string>
+    <string name="settings_test_webhook">Send test payload</string>
+
+    <string name="settings_section_probe">Liveness probe</string>
+    <string name="settings_probe_enabled">Enable liveness probe</string>
+    <string name="settings_probe_url">Probe URL (http/https)</string>
+    <string name="settings_probe_interval">Interval (sec)</string>
+    <string name="settings_probe_timeout">Timeout (ms)</string>
+    <string name="settings_test_probe">Send test ping</string>
+
+    <string name="settings_section_keepalive">Keep agent alive</string>
+    <string name="settings_keepalive_help">Runs an ongoing notification + foreground service so the agent and the 15s probe survive being swiped away or Doze.</string>
+    <string name="settings_keepalive_enabled">Run as always-on foreground service</string>
+    <string name="settings_battery_exempt">Disable battery optimisation</string>
+    <string name="settings_open_oem_autostart">Open OEM autostart settings</string>
+
+    <string name="settings_section_filters">Source filters</string>
+
+    <string name="invalid_url">Enter a valid http(s) URL first</string>
+    <string name="test_ok">OK</string>
+    <string name="test_failed">Failed</string>
+    <string name="no_oem_autostart">No OEM autostart screen detected on this device</string>
+
+    <!-- Foreground service -->
+    <string name="agent_running_title">Notification Agent is active</string>
+    <string name="agent_running_text">Forwarding selected events and pinging the liveness probe.</string>
+    <string name="agent_channel_name">Agent foreground service</string>
+    <string name="agent_channel_desc">Ongoing notification shown while the agent is running.</string>
+
+    <!-- Status -->
+    <string name="status_service">Foreground service</string>
+    <string name="status_service_running">Running</string>
+    <string name="status_service_stopped">Stopped</string>
+    <string name="status_uptime">Up %1$s</string>
+    <string name="status_start">Start agent</string>
+    <string name="status_stop">Stop agent</string>
+
+    <string name="status_permissions">Permissions</string>
+    <string name="status_perm_listener">Notification listener access</string>
+    <string name="status_perm_sms">SMS permission (RECEIVE / READ)</string>
+    <string name="status_perm_post">Post notifications</string>
+    <string name="status_perm_battery">Battery optimisation disabled</string>
+
+    <string name="status_webhook">Webhook</string>
+    <string name="status_probe">Liveness probe</string>
+    <string name="status_enabled">Enabled</string>
+    <string name="status_no_activity">No activity yet</string>
+    <string name="status_webhook_counters">Sent %1$d • Failed %2$d • Queued %3$d</string>
+    <string name="status_last_webhook">Last delivery: %1$s • %2$s %3$s</string>
+    <string name="status_last_probe">Last ping: %1$s • %2$s • %3$d ms</string>
+    <string name="status_next_probe">Next ping in %1$d s</string>
+    <string name="status_next_probe_pending">Next ping scheduled…</string>
+
+    <!-- Permissions banner -->
+    <string name="notification_listener_label">Notification Agent</string>
+    <string name="permissions_required">Grant the required access to start capturing.</string>
+    <string name="grant_notification_access">Enable notification access</string>
+    <string name="grant_sms_permission">Grant SMS permission</string>
+
+    <!-- Messages -->
+    <string name="no_messages_yet">No messages captured yet.</string>
+    <string name="clear_messages">Clear captured messages</string>
+
+    <!-- Notification filters -->
+    <string name="search_apps">Search apps</string>
+    <string name="show_system_apps">Show system apps</string>
+
+    <!-- SMS filters -->
+    <string name="sms_filter_help">Add a phone number, sender ID or keyword. The message is captured when the sender contains any enabled rule (case-insensitive). Leave the list empty to capture everything.</string>
+    <string name="sms_filter_hint">Sender / keyword</string>
+    <string name="add">Add</string>
+    <string name="no_sms_rules">No SMS rules — capturing every message.</string>
+
+    <!-- Bank config entry point (Compose UI lives in :configui) -->
+    <string name="bank_open">Manage bank endpoints</string>
+</resources>
+

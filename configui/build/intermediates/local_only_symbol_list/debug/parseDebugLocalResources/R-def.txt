@@ -1,0 +1,28 @@
+R_DEF: Internal format may change without notice
+local
+string bank_add
+string bank_app_version
+string bank_back
+string bank_cancel
+string bank_configs_empty
+string bank_delete
+string bank_edit
+string bank_field_apikey
+string bank_field_enabled
+string bank_field_endpoint
+string bank_field_name
+string bank_save
+string bank_validation_endpoint
+string bank_validation_name
+string pin_disable
+string pin_disabled_label
+string pin_enabled_label
+string pin_enter_hint
+string pin_enter_title
+string pin_invalid
+string pin_section
+string pin_set
+string pin_set_title
+string pin_unlock
+string pin_wrong
+string title_bank_configs

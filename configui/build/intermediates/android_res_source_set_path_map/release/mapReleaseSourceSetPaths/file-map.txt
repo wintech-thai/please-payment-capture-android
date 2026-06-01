@@ -1,0 +1,10 @@
+com.example.notification_agent.bank.configui-pngs-0 /Users/linus/AndroidStudioProjects/notificationagent/configui/build/generated/res/pngs/release
+com.example.notification_agent.bank.configui-resValues-1 /Users/linus/AndroidStudioProjects/notificationagent/configui/build/generated/res/resValues/release
+com.example.notification_agent.bank.configui-updated_navigation_xml-2 /Users/linus/AndroidStudioProjects/notificationagent/configui/build/generated/updated_navigation_xml/release
+com.example.notification_agent.bank.configui-mergeReleaseResources-3 /Users/linus/AndroidStudioProjects/notificationagent/configui/build/intermediates/incremental/release/mergeReleaseResources/merged.dir
+com.example.notification_agent.bank.configui-mergeReleaseResources-4 /Users/linus/AndroidStudioProjects/notificationagent/configui/build/intermediates/incremental/release/mergeReleaseResources/stripped.dir
+com.example.notification_agent.bank.configui-release-5 /Users/linus/AndroidStudioProjects/notificationagent/configui/build/intermediates/merged_res/release/mergeReleaseResources
+com.example.notification_agent.bank.configui-release-6 /Users/linus/AndroidStudioProjects/notificationagent/configui/build/intermediates/packaged_res/release/packageReleaseResources
+com.example.notification_agent.bank.configui-main-7 /Users/linus/AndroidStudioProjects/notificationagent/configui/src/main/res
+com.example.notification_agent.bank.configui-release-8 /Users/linus/AndroidStudioProjects/notificationagent/configui/src/release/res
+gradleHome-0 /Users/linus/.gradle

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application>
+        <!-- Compose-based multi-bank endpoint configuration. Inherits the host
+             application theme via manifest merge. -->
+        <activity
+            android:name=".BankConfigActivity"
+            android:exported="false"
+            android:label="@string/title_bank_configs" />
+    </application>
+
+</manifest>
