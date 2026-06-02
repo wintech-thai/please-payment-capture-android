@@ -18,6 +18,10 @@ val agentWebhookToken: String = run {
         ?: "dev-token"
 }
 
+val releaseKeystorePath: String? = System.getenv("KEYSTORE_FILE")
+    ?.trim()
+    ?.takeIf { it.isNotEmpty() }
+
 android {
     namespace = "com.example.notification_agent"
     compileSdk = 35
@@ -38,9 +42,8 @@ android {
         // Release signing driven by CI secrets. When the keystore env vars are
         // absent (e.g. local debug builds) the release APK is left unsigned.
         create("release") {
-            val keystorePath = System.getenv("KEYSTORE_FILE")
-            if (keystorePath != null && file(keystorePath).exists()) {
-                storeFile = file(keystorePath)
+            if (releaseKeystorePath != null && file(releaseKeystorePath).exists()) {
+                storeFile = file(releaseKeystorePath)
                 storePassword = System.getenv("KEYSTORE_PASSWORD")
                 keyAlias = System.getenv("KEY_ALIAS")
                 keyPassword = System.getenv("KEY_PASSWORD")
@@ -56,7 +59,7 @@ android {
                 "proguard-rules.pro"
             )
             // Only attach the signing config when a keystore was provided.
-            signingConfig = if (System.getenv("KEYSTORE_FILE") != null) {
+            signingConfig = if (releaseKeystorePath != null) {
                 signingConfigs.getByName("release")
             } else {
                 null
