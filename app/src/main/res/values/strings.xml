@@ -13,11 +13,17 @@
     <string name="forward_to_webhook">Forward to webhook</string>
 
     <!-- Settings -->
+    <string name="settings_section_bank_endpoints">Bank endpoints</string>
     <string name="settings_section_webhook">Webhook</string>
     <string name="settings_webhook_enabled">Enable webhook forwarding</string>
     <string name="settings_webhook_url">Webhook URL (http/https)</string>
+    <string name="settings_webhook_bearer_token">Bearer token (optional)</string>
+    <string name="settings_webhook_payload_help">The JSON payload includes sourceType, sourceKey/sourceLabel, and for notifications also notificationAppPackage + notificationAppName.</string>
     <string name="settings_test_webhook">Send test payload</string>
 
+    <string name="settings_section_additional_config">Additional config</string>
+    <string name="settings_show_additional_config">Show additional config</string>
+    <string name="settings_hide_additional_config">Hide additional config</string>
     <string name="settings_section_probe">Liveness probe</string>
     <string name="settings_probe_enabled">Enable liveness probe</string>
     <string name="settings_probe_url">Probe URL (http/https)</string>

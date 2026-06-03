@@ -103,7 +103,7 @@ class BankConfigRepository(private val context: Context) {
                     id = o.optString("id"),
                     bankName = o.optString("bankName"),
                     endpointUrl = o.optString("endpointUrl"),
-                    apiKey = o.optString("apiKey"),
+                    apiKey = decodeApiKey(o),
                     isEnabled = o.optBoolean("isEnabled", true)
                 )
             }
@@ -118,10 +118,18 @@ class BankConfigRepository(private val context: Context) {
                     .put("id", c.id)
                     .put("bankName", c.bankName)
                     .put("endpointUrl", c.endpointUrl)
-                    .put("apiKey", c.apiKey)
+                        .put("apiKeyCiphertext", DeviceBoundSecretCipher.encrypt(context, c.apiKey))
                     .put("isEnabled", c.isEnabled)
             )
         }
         return arr.toString()
+    }
+
+    private fun decodeApiKey(config: JSONObject): String {
+        val encrypted = config.optString("apiKeyCiphertext")
+        if (encrypted.isNotBlank()) {
+            return DeviceBoundSecretCipher.decrypt(context, encrypted).orEmpty()
+        }
+        return config.optString("apiKey")
     }
 }

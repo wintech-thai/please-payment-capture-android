@@ -4,7 +4,6 @@ import android.os.Build
 import android.os.SystemClock
 import android.util.Log
 import com.example.notification_agent.BuildConfig
-import com.example.notification_agent.data.settings.AgentSettings
 import com.example.notification_agent.data.settings.AgentSettingsRepository
 import com.example.notification_agent.net.AgentHttpClient.withAgentHeaders
 import com.example.notification_agent.status.AgentStatusRepository
@@ -25,6 +24,9 @@ class LivenessProbe(
     private val deviceId: String,
     private val statusProvider: () -> ProbePayload
 ) {
+
+    private val embeddedBearerToken: String? = BuildConfig.AGENT_WEBHOOK_TOKEN
+        .takeUnless { it.isBlank() }
 
     data class ProbePayload(
         val uptimeSec: Long,
@@ -48,7 +50,7 @@ class LivenessProbe(
         val request = Request.Builder()
             .url(current.probeUrl)
             .post(body)
-            .withAgentHeaders()
+            .withAgentHeaders(embeddedBearerToken)
             .build()
         val started = SystemClock.elapsedRealtime()
         val result = runCatching {

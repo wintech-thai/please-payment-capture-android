@@ -1,6 +1,7 @@
 package com.example.notification_agent.ui.settings
 
 import android.Manifest
+import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import android.text.Editable
@@ -17,8 +18,8 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.fragment.findNavController
-import com.example.notification_agent.NotificationAgentApp
 import com.example.notification_agent.R
+import com.example.notification_agent.bank.BankConfigActivity
 import com.example.notification_agent.data.settings.AgentSettings
 import com.example.notification_agent.databinding.FragmentSettingsBinding
 import com.example.notification_agent.service.AgentForegroundService
@@ -32,6 +33,7 @@ class SettingsFragment : Fragment() {
     private val viewModel: SettingsViewModel by viewModels()
 
     private var suppressBindingChanges = false
+    private var additionalConfigVisible = false
 
     private val requestPostNotifications = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -46,10 +48,14 @@ class SettingsFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        additionalConfigVisible = savedInstanceState?.getBoolean(KEY_ADDITIONAL_CONFIG_VISIBLE) ?: false
+        wireBankEndpoints()
+        wireAdditionalConfig()
         wireWebhook()
         wireProbe()
         wireKeepAlive()
         wireFilters()
+        renderAdditionalConfigVisibility()
 
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -77,6 +83,9 @@ class SettingsFragment : Fragment() {
         binding.webhookUrl.addTextChangedListener(simpleWatcher { text ->
             viewModel.update { it.copy(webhookUrl = text) }
         })
+        binding.webhookBearerToken.addTextChangedListener(simpleWatcher { text ->
+            viewModel.update { it.copy(webhookBearerToken = text) }
+        })
         binding.testWebhook.setOnClickListener {
             val url = binding.webhookUrl.text?.toString().orEmpty()
             if (!URLUtil.isNetworkUrl(url)) {
@@ -84,6 +93,19 @@ class SettingsFragment : Fragment() {
                 return@setOnClickListener
             }
             viewModel.sendTestWebhook()
+        }
+    }
+
+    private fun wireBankEndpoints() {
+        binding.openBankEndpoints.setOnClickListener {
+            startActivity(Intent(requireContext(), BankConfigActivity::class.java))
+        }
+    }
+
+    private fun wireAdditionalConfig() {
+        binding.toggleAdditionalConfig.setOnClickListener {
+            additionalConfigVisible = !additionalConfigVisible
+            renderAdditionalConfigVisibility()
         }
     }
 
@@ -154,6 +176,7 @@ class SettingsFragment : Fragment() {
             if (binding.webhookEnabled.isChecked != s.webhookEnabled)
                 binding.webhookEnabled.isChecked = s.webhookEnabled
             setIfChanged(binding.webhookUrl, s.webhookUrl)
+            setIfChanged(binding.webhookBearerToken, s.webhookBearerToken)
 
             if (binding.probeEnabled.isChecked != s.probeEnabled)
                 binding.probeEnabled.isChecked = s.probeEnabled
@@ -188,6 +211,19 @@ class SettingsFragment : Fragment() {
         }
     }
 
+    private fun renderAdditionalConfigVisibility() {
+        binding.additionalConfigContainer.visibility = if (additionalConfigVisible) View.VISIBLE else View.GONE
+        binding.toggleAdditionalConfig.text = getString(
+            if (additionalConfigVisible) R.string.settings_hide_additional_config
+            else R.string.settings_show_additional_config
+        )
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putBoolean(KEY_ADDITIONAL_CONFIG_VISIBLE, additionalConfigVisible)
+    }
+
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null
@@ -200,6 +236,10 @@ class SettingsFragment : Fragment() {
             onChange(s?.toString().orEmpty())
         }
         override fun afterTextChanged(s: Editable?) {}
+    }
+
+    companion object {
+        private const val KEY_ADDITIONAL_CONFIG_VISIBLE = "additional_config_visible"
     }
 }
 

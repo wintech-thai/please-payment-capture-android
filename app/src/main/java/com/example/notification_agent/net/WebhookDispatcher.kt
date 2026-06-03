@@ -4,7 +4,6 @@ import android.os.Build
 import android.util.Log
 import com.example.notification_agent.BuildConfig
 import com.example.notification_agent.data.MessageEntity
-import com.example.notification_agent.data.settings.AgentSettings
 import com.example.notification_agent.data.settings.AgentSettingsRepository
 import com.example.notification_agent.net.AgentHttpClient.withAgentHeaders
 import com.example.notification_agent.status.AgentStatusRepository
@@ -18,6 +17,7 @@ import kotlinx.coroutines.launch
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import org.json.JSONObject
 
 /**
  * Fire-and-forget webhook sink. Captured messages are pushed onto a bounded
@@ -102,7 +102,7 @@ class WebhookDispatcher(
         val request = Request.Builder()
             .url(url)
             .post(body)
-            .withAgentHeaders()
+            .withAgentHeaders(current.webhookBearerToken)
             .build()
         AgentHttpClient.client.newCall(request).execute().use { response ->
             val ok = response.isSuccessful
@@ -115,42 +115,27 @@ class WebhookDispatcher(
         }
     }
 
-    private fun buildJson(m: MessageEntity): String = buildString {
-        append('{')
-        appendJson("id", m.id)
-        appendJson("sourceType", m.sourceType.name)
-        appendJson("sourceKey", m.sourceKey)
-        appendJson("sourceLabel", m.sourceLabel ?: "")
-        appendJson("title", m.title ?: "")
-        appendJson("text", m.text ?: "")
-        appendJson("timestamp", m.timestamp)
-        appendJson("deviceId", deviceId)
-        appendJson("device", "${Build.MANUFACTURER} ${Build.MODEL}")
-        appendJson("agentVersion", BuildConfig.VERSION_NAME, last = true)
-        append('}')
-    }
+    private fun buildJson(m: MessageEntity): String {
+        val json = JSONObject()
+            .put("id", m.id)
+            .put("sourceType", m.sourceType.name)
+            .put("sourceKey", m.sourceKey)
+            .put("sourceLabel", m.sourceLabel.orEmpty())
+            .put("title", m.title.orEmpty())
+            .put("text", m.text.orEmpty())
+            .put("timestamp", m.timestamp)
+            .put("deviceId", deviceId)
+            .put("device", "${Build.MANUFACTURER} ${Build.MODEL}")
+            .put("agentVersion", BuildConfig.VERSION_NAME)
 
-    private fun StringBuilder.appendJson(key: String, value: Any, last: Boolean = false) {
-        append('"').append(key).append("\":")
-        when (value) {
-            is Number, is Boolean -> append(value.toString())
-            else -> append('"').append(escape(value.toString())).append('"')
+        if (m.sourceType == com.example.notification_agent.data.SourceType.NOTIFICATION) {
+            json.put("notificationAppPackage", m.sourceKey)
+            if (!m.sourceLabel.isNullOrBlank()) {
+                json.put("notificationAppName", m.sourceLabel)
+            }
         }
-        if (!last) append(',')
-    }
 
-    private fun escape(s: String): String {
-        val sb = StringBuilder(s.length + 2)
-        for (c in s) when (c) {
-            '\\' -> sb.append("\\\\")
-            '"' -> sb.append("\\\"")
-            '\n' -> sb.append("\\n")
-            '\r' -> sb.append("\\r")
-            '\t' -> sb.append("\\t")
-            '\b' -> sb.append("\\b")
-            else -> if (c.code < 0x20) sb.append(String.format("\\u%04x", c.code)) else sb.append(c)
-        }
-        return sb.toString()
+        return json.toString()
     }
 
     companion object {

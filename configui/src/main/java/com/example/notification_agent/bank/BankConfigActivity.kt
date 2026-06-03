@@ -1,3 +1,5 @@
+@file:Suppress("UNUSED_VALUE")
+
 package com.example.notification_agent.bank
 
 import android.os.Bundle
@@ -16,8 +18,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Lock
@@ -45,6 +47,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -134,7 +137,7 @@ private fun BankListScreen(
                 title = { Text(stringResource(R.string.title_bank_configs)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Filled.ArrowBack, stringResource(R.string.bank_back))
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.bank_back))
                     }
                 },
                 actions = {
@@ -232,9 +235,12 @@ private fun BankEditorScreen(
     onSave: (BankConfig, Boolean) -> Unit
 ) {
     val isNew = existing == null
+    val hasSavedApiKey = !existing?.apiKey.isNullOrBlank()
     var bankName by remember { mutableStateOf(existing?.bankName.orEmpty()) }
     var endpointUrl by remember { mutableStateOf(existing?.endpointUrl.orEmpty()) }
-    var apiKey by remember { mutableStateOf(existing?.apiKey.orEmpty()) }
+    var apiKey by remember { mutableStateOf("") }
+    var apiKeyDirty by remember { mutableStateOf(false) }
+    var clearSavedApiKey by remember { mutableStateOf(false) }
     var enabled by remember { mutableStateOf(existing?.isEnabled ?: true) }
     var showErrors by remember { mutableStateOf(false) }
 
@@ -249,7 +255,7 @@ private fun BankEditorScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = onCancel) {
-                        Icon(Icons.Filled.ArrowBack, stringResource(R.string.bank_cancel))
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.bank_cancel))
                     }
                 }
             )
@@ -287,11 +293,45 @@ private fun BankEditorScreen(
             )
             OutlinedTextField(
                 value = apiKey,
-                onValueChange = { apiKey = it },
-                label = { Text(stringResource(R.string.bank_field_apikey)) },
+                onValueChange = {
+                    apiKey = it
+                    apiKeyDirty = true
+                    clearSavedApiKey = false
+                },
+                label = {
+                    Text(
+                        stringResource(
+                            if (hasSavedApiKey) R.string.bank_field_apikey_replace
+                            else R.string.bank_field_apikey
+                        )
+                    )
+                },
                 singleLine = true,
+                visualTransformation = PasswordVisualTransformation(),
+                supportingText = {
+                    if (hasSavedApiKey) {
+                        Text(
+                            stringResource(
+                                if (clearSavedApiKey) R.string.bank_apikey_clear_pending
+                                else R.string.bank_apikey_hidden_help
+                            )
+                        )
+                    }
+                },
                 modifier = Modifier.fillMaxWidth()
             )
+            if (hasSavedApiKey) {
+                OutlinedButton(
+                    onClick = {
+                        apiKey = ""
+                        apiKeyDirty = true
+                        clearSavedApiKey = true
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(stringResource(R.string.bank_apikey_clear))
+                }
+            }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(stringResource(R.string.bank_field_enabled), Modifier.weight(1f))
                 Switch(checked = enabled, onCheckedChange = { enabled = it })
@@ -306,10 +346,14 @@ private fun BankEditorScreen(
                         if (nameError || urlError) {
                             showErrors = true
                         } else {
+                            val savedApiKey = when {
+                                apiKeyDirty -> apiKey.trim()
+                                else -> existing?.apiKey.orEmpty()
+                            }
                             val saved = (existing ?: BankConfig()).copy(
                                 bankName = bankName.trim(),
                                 endpointUrl = endpointUrl.trim(),
-                                apiKey = apiKey.trim(),
+                                apiKey = savedApiKey,
                                 isEnabled = enabled
                             )
                             onSave(saved, isNew)
@@ -389,7 +433,7 @@ private fun PinSettingsScreen(
                 title = { Text(stringResource(R.string.pin_section)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Filled.ArrowBack, stringResource(R.string.bank_back))
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.bank_back))
                     }
                 }
             )

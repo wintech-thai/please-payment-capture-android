@@ -7,6 +7,10 @@
     <string name="bank_field_name">Bank name (e.g. KTB, SCB)</string>
     <string name="bank_field_endpoint">Endpoint URL</string>
     <string name="bank_field_apikey">API key (optional)</string>
+    <string name="bank_field_apikey_replace">API key (leave blank to keep saved key)</string>
+    <string name="bank_apikey_hidden_help">The saved API key is hidden after save. Enter a new value only when you want to replace or clear it.</string>
+    <string name="bank_apikey_clear">Clear saved API key</string>
+    <string name="bank_apikey_clear_pending">The saved API key will be removed when you press Save.</string>
     <string name="bank_field_enabled">Enabled</string>
     <string name="bank_save">Save</string>
     <string name="bank_cancel">Cancel</string>

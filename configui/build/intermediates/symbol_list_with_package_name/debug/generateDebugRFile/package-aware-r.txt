@@ -1,5 +1,8 @@
 com.example.notification_agent.bank
 string bank_add
+string bank_apikey_clear
+string bank_apikey_clear_pending
+string bank_apikey_hidden_help
 string bank_app_version
 string bank_back
 string bank_cancel
@@ -7,6 +10,7 @@ string bank_configs_empty
 string bank_delete
 string bank_edit
 string bank_field_apikey
+string bank_field_apikey_replace
 string bank_field_enabled
 string bank_field_endpoint
 string bank_field_name

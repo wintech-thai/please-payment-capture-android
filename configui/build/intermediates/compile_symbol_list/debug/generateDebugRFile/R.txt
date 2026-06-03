@@ -1,4 +1,7 @@
 int string bank_add 0x0
+int string bank_apikey_clear 0x0
+int string bank_apikey_clear_pending 0x0
+int string bank_apikey_hidden_help 0x0
 int string bank_app_version 0x0
 int string bank_back 0x0
 int string bank_cancel 0x0
@@ -6,6 +9,7 @@ int string bank_configs_empty 0x0
 int string bank_delete 0x0
 int string bank_edit 0x0
 int string bank_field_apikey 0x0
+int string bank_field_apikey_replace 0x0
 int string bank_field_enabled 0x0
 int string bank_field_endpoint 0x0
 int string bank_field_name 0x0

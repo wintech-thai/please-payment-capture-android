@@ -4,6 +4,7 @@ package com.example.notification_agent.data.settings
 data class AgentSettings(
     val webhookUrl: String = "",
     val webhookEnabled: Boolean = false,
+    val webhookBearerToken: String = "",
     val probeUrl: String = "",
     val probeEnabled: Boolean = false,
     /** Liveness probe period. Default 15 seconds. */

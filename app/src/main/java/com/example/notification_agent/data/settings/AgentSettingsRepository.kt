@@ -17,6 +17,7 @@ class AgentSettingsRepository(private val context: Context) {
     private object Keys {
         val WebhookUrl = stringPreferencesKey("webhook_url")
         val WebhookEnabled = booleanPreferencesKey("webhook_enabled")
+        val WebhookBearerToken = stringPreferencesKey("webhook_bearer_token")
         val ProbeUrl = stringPreferencesKey("probe_url")
         val ProbeEnabled = booleanPreferencesKey("probe_enabled")
         val ProbeIntervalSec = intPreferencesKey("probe_interval_sec")
@@ -28,6 +29,7 @@ class AgentSettingsRepository(private val context: Context) {
         AgentSettings(
             webhookUrl = prefs[Keys.WebhookUrl].orEmpty(),
             webhookEnabled = prefs[Keys.WebhookEnabled] ?: false,
+            webhookBearerToken = prefs[Keys.WebhookBearerToken].orEmpty(),
             probeUrl = prefs[Keys.ProbeUrl].orEmpty(),
             probeEnabled = prefs[Keys.ProbeEnabled] ?: false,
             probeIntervalSec = prefs[Keys.ProbeIntervalSec]
@@ -43,6 +45,7 @@ class AgentSettingsRepository(private val context: Context) {
             val current = AgentSettings(
                 webhookUrl = prefs[Keys.WebhookUrl].orEmpty(),
                 webhookEnabled = prefs[Keys.WebhookEnabled] ?: false,
+                webhookBearerToken = prefs[Keys.WebhookBearerToken].orEmpty(),
                 probeUrl = prefs[Keys.ProbeUrl].orEmpty(),
                 probeEnabled = prefs[Keys.ProbeEnabled] ?: false,
                 probeIntervalSec = prefs[Keys.ProbeIntervalSec]
@@ -54,6 +57,7 @@ class AgentSettingsRepository(private val context: Context) {
             val next = transform(current).normalised()
             prefs[Keys.WebhookUrl] = next.webhookUrl
             prefs[Keys.WebhookEnabled] = next.webhookEnabled
+            prefs[Keys.WebhookBearerToken] = next.webhookBearerToken
             prefs[Keys.ProbeUrl] = next.probeUrl
             prefs[Keys.ProbeEnabled] = next.probeEnabled
             prefs[Keys.ProbeIntervalSec] = next.probeIntervalSec
@@ -63,6 +67,7 @@ class AgentSettingsRepository(private val context: Context) {
     }
 
     private fun AgentSettings.normalised(): AgentSettings = copy(
+        webhookBearerToken = webhookBearerToken.trim(),
         probeIntervalSec = probeIntervalSec.coerceIn(
             AgentSettings.MIN_PROBE_INTERVAL_SEC,
             AgentSettings.MAX_PROBE_INTERVAL_SEC
