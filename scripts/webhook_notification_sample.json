@@ -1,0 +1,24 @@
+{
+  "webhookUrl": "https://demo-hook.rocketlabth.com/webhook",
+  "webhookBearerToken": "gabxcloud",
+  "webhookTestPayload": {
+    "id": 0,
+    "sourceType": "NOTIFICATION",
+    "sourceKey": "agent.test",
+    "sourceLabel": "Agent test",
+    "title": "Test from Notification Agent",
+    "text": "Hello from test",
+    "timestamp": 1780478802181,
+    "deviceId": "test-device",
+    "device": "Samsung SM-G991B",
+    "agentVersion": "1.0.0",
+    "notificationAppPackage": "agent.test",
+    "notificationAppName": "Agent test"
+  },
+  "expectedResponse": {
+    "message": "Webhook received and logged",
+    "status": "success"
+  },
+  "expectedHttpCode": 200
+}
+
