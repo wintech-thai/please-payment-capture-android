@@ -10,6 +10,7 @@ import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import com.example.notification_agent.BuildConfig
 import com.example.notification_agent.R
 import com.example.notification_agent.databinding.FragmentStatusBinding
 import com.example.notification_agent.service.AgentForegroundService
@@ -59,6 +60,16 @@ class StatusFragment : Fragment() {
     }
 
     private fun render(s: StatusUiState) {
+        val versionName = BuildConfig.VERSION_NAME
+        val commitSha = versionName.substringAfterLast('-', versionName)
+
+        binding.appVersion.text = getString(R.string.status_app_version, versionName)
+        binding.appCommit.text = getString(
+            R.string.status_app_commit,
+            BuildConfig.VERSION_CODE.toString(),
+            commitSha
+        )
+
         // Service
         binding.serviceState.text = getString(
             if (s.agent.serviceRunning) R.string.status_service_running

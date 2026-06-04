@@ -22,6 +22,29 @@ val releaseKeystorePath: String? = System.getenv("KEYSTORE_FILE")
     ?.trim()
     ?.takeIf { it.isNotEmpty() }
 
+fun gitValue(vararg args: String): String? {
+    return try {
+        val process = ProcessBuilder(listOf("git", *args))
+            .directory(rootDir)
+            .redirectErrorStream(true)
+            .start()
+        val output = process.inputStream.bufferedReader().use { it.readText().trim() }
+        if (process.waitFor() == 0) output.takeIf { it.isNotEmpty() } else null
+    } catch (_: Exception) {
+        null
+    }
+}
+
+val baseVersionName = (findProperty("APP_VERSION_NAME") as String?)?.trim().orEmpty()
+    .ifEmpty { "1.0" }
+val gitCommitCount = gitValue("rev-list", "--count", "HEAD")
+    ?.toIntOrNull()
+    ?.coerceAtLeast(1)
+    ?: 1
+val gitCommitSha = gitValue("rev-parse", "--short=8", "HEAD") ?: "local"
+val resolvedVersionName = "$baseVersionName.$gitCommitCount-$gitCommitSha"
+val hasReleaseSigning = releaseKeystorePath != null && file(releaseKeystorePath).exists()
+
 android {
     namespace = "com.example.notification_agent"
     compileSdk = 35
@@ -30,20 +53,22 @@ android {
         applicationId = "com.example.notification_agent"
         minSdk = 30
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = gitCommitCount
+        versionName = resolvedVersionName
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         buildConfigField("String", "AGENT_WEBHOOK_TOKEN", "\"$agentWebhookToken\"")
+        buildConfigField("String", "GIT_COMMIT_SHA", "\"$gitCommitSha\"")
     }
 
     signingConfigs {
         // Release signing driven by CI secrets. When the keystore env vars are
-        // absent (e.g. local debug builds) the release APK is left unsigned.
+        // absent (e.g. branch artifacts / local builds), fall back to the
+        // Android debug signing config so the APK is still installable.
         create("release") {
-            if (releaseKeystorePath != null && file(releaseKeystorePath).exists()) {
-                storeFile = file(releaseKeystorePath)
+            if (hasReleaseSigning) {
+                storeFile = file(requireNotNull(releaseKeystorePath))
                 storePassword = System.getenv("KEYSTORE_PASSWORD")
                 keyAlias = System.getenv("KEY_ALIAS")
                 keyPassword = System.getenv("KEY_PASSWORD")
@@ -58,11 +83,10 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            // Only attach the signing config when a keystore was provided.
-            signingConfig = if (releaseKeystorePath != null) {
+            signingConfig = if (hasReleaseSigning) {
                 signingConfigs.getByName("release")
             } else {
-                null
+                signingConfigs.getByName("debug")
             }
         }
     }
@@ -107,4 +131,38 @@ dependencies {
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(libs.androidx.junit)
+}
+
+val packageReleaseArtifacts by tasks.registering {
+    group = "build"
+    description = "Copies the release APK to versioned APK/ZIP artifacts."
+    dependsOn("assembleRelease")
+
+    doLast {
+        val releaseDir = layout.buildDirectory.dir("outputs/apk/release").get().asFile
+        val sourceApk = releaseDir.resolve("app-release.apk")
+        check(sourceApk.exists()) { "Release APK not found at ${sourceApk.absolutePath}" }
+
+        val artifactBaseName = "notification-agent-v${resolvedVersionName}-release"
+        val artifactDir = layout.buildDirectory.dir("outputs/dist/release").get().asFile.apply {
+            mkdirs()
+        }
+        val versionedApk = artifactDir.resolve("$artifactBaseName.apk")
+        val versionedZip = artifactDir.resolve("$artifactBaseName.zip")
+
+        sourceApk.copyTo(versionedApk, overwrite = true)
+
+        ant.invokeMethod(
+            "zip",
+            mapOf(
+                "destfile" to versionedZip,
+                "basedir" to artifactDir,
+                "includes" to versionedApk.name,
+                "update" to false
+            )
+        )
+
+        println("Packaged ${versionedApk.name}")
+        println("Packaged ${versionedZip.name}")
+    }
 }

@@ -73,6 +73,9 @@
     <string name="status_last_probe">Last ping: %1$s • %2$s • %3$d ms</string>
     <string name="status_next_probe">Next ping in %1$d s</string>
     <string name="status_next_probe_pending">Next ping scheduled…</string>
+    <string name="status_build_info">Build info</string>
+    <string name="status_app_version">Version %1$s</string>
+    <string name="status_app_commit">Commit #%1$s • %2$s</string>
 
     <!-- Permissions banner -->
     <string name="notification_listener_label">Notification Agent</string>

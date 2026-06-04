@@ -18,11 +18,14 @@ jobs:
   build:
     runs-on: ubuntu-latest
     env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
       KEYSTORE_B64: ${{ secrets.KEYSTORE }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -54,29 +57,44 @@ jobs:
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: ./gradlew :app:assembleRelease --no-daemon
 
-      # Read versionName/versionCode straight from the merged manifest / AGP
-      # output metadata so the asset name always matches the build.
-      - name: Extract version & rename APK
+      # Read versionName/versionCode straight from AGP output metadata so the
+      # asset names always match the built APK, then verify the artifact is
+      # signed + aligned before publishing it.
+      - name: Package and verify APK artifacts
         id: version
         run: |
           APK_DIR=app/build/outputs/apk/release
           SRC_APK=$(ls "$APK_DIR"/*.apk | head -n 1)
           VERSION_NAME=$(python3 -c "import json,glob;print(json.load(open(glob.glob('$APK_DIR/output-metadata.json')[0]))['elements'][0]['versionName'])")
           VERSION_CODE=$(python3 -c "import json,glob;print(json.load(open(glob.glob('$APK_DIR/output-metadata.json')[0]))['elements'][0]['versionCode'])")
-          OUT_APK="$APK_DIR/app-v${VERSION_NAME}-release.apk"
+          ASSET_BASE="notification-agent-v${VERSION_NAME}-release"
+          OUT_APK="$APK_DIR/${ASSET_BASE}.apk"
+          OUT_ZIP="$APK_DIR/${ASSET_BASE}.zip"
+          SDK_ROOT="${ANDROID_HOME:-$ANDROID_SDK_ROOT}"
+          BUILD_TOOLS_DIR=$(find "$SDK_ROOT/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)
+
           cp "$SRC_APK" "$OUT_APK"
+
+          "$BUILD_TOOLS_DIR/apksigner" verify --verbose --print-certs "$OUT_APK"
+          "$BUILD_TOOLS_DIR/zipalign" -c -P 16 -v 4 "$OUT_APK"
+
+          zip -j "$OUT_ZIP" "$OUT_APK"
+
           echo "version_name=${VERSION_NAME}" >> "$GITHUB_OUTPUT"
           echo "version_code=${VERSION_CODE}" >> "$GITHUB_OUTPUT"
           echo "apk_path=${OUT_APK}" >> "$GITHUB_OUTPUT"
-          echo "Built app-v${VERSION_NAME}-release.apk (versionCode ${VERSION_CODE})"
+          echo "zip_path=${OUT_ZIP}" >> "$GITHUB_OUTPUT"
+          echo "Built ${ASSET_BASE}.apk and ${ASSET_BASE}.zip (versionCode ${VERSION_CODE})"
 
       # Branch pushes: keep the APK as a temporary CI artifact (90-day default).
       - name: Upload APK artifact
         if: ${{ !startsWith(github.ref, 'refs/tags/') }}
         uses: actions/upload-artifact@v4
         with:
-          name: app-v${{ steps.version.outputs.version_name }}-release
-          path: ${{ steps.version.outputs.apk_path }}
+          name: notification-agent-v${{ steps.version.outputs.version_name }}-release
+          path: |
+            ${{ steps.version.outputs.apk_path }}
+            ${{ steps.version.outputs.zip_path }}
           if-no-files-found: error
 
       # Tag pushes: cut a GitHub Release and attach the APK as a release asset.
@@ -87,4 +105,6 @@ jobs:
           name: ${{ github.ref_name }}
           tag_name: ${{ github.ref_name }}
           generate_release_notes: true
-          files: ${{ steps.version.outputs.apk_path }}
+          files: |
+            ${{ steps.version.outputs.apk_path }}
+            ${{ steps.version.outputs.zip_path }}
