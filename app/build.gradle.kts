@@ -1,3 +1,7 @@
+import com.android.build.api.dsl.ApplicationExtension
+import org.gradle.kotlin.dsl.configure
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.jetbrains.kotlin.gradle.dsl.KotlinAndroidProjectExtension
 import java.util.Properties
 
 plugins {
@@ -45,7 +49,7 @@ val gitCommitSha = gitValue("rev-parse", "--short=8", "HEAD") ?: "local"
 val resolvedVersionName = "$baseVersionName.$gitCommitCount-$gitCommitSha"
 val hasReleaseSigning = releaseKeystorePath != null && file(releaseKeystorePath).exists()
 
-android {
+extensions.configure<ApplicationExtension> {
     namespace = "com.example.notification_agent"
     compileSdk = 35
 
@@ -94,12 +98,15 @@ android {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
-    kotlinOptions {
-        jvmTarget = "11"
-    }
     buildFeatures {
         viewBinding = true
         buildConfig = true
+    }
+}
+
+extensions.configure<KotlinAndroidProjectExtension> {
+    compilerOptions {
+        jvmTarget.set(JvmTarget.JVM_11)
     }
 }
 
