@@ -7,6 +7,7 @@ import android.service.notification.StatusBarNotification
 import com.example.notification_agent.NotificationAgentApp
 import com.example.notification_agent.data.MessageEntity
 import com.example.notification_agent.data.SourceType
+import com.example.notification_agent.net.LineBankPaymentParser
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -44,6 +45,7 @@ class NotificationCaptureService : NotificationListenerService() {
         if (title.isNullOrBlank() && text.isNullOrBlank()) return
 
         val pkg = notification.packageName
+        if (LineBankPaymentParser.parseNotification(pkg, title, text) == null) return
         val label = runCatching {
             val pm = packageManager
             pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString()

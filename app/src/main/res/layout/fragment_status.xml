@@ -135,6 +135,29 @@
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
+        <!-- Bank forwarding -->
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/bankForwardCard"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="12dp"
+            android:visibility="gone">
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="12dp">
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/status_bank_forward"
+                    android:textAppearance="?attr/textAppearanceTitleMedium" />
+                <TextView android:id="@+id/bankForwardEnabled" style="@style/StatusRow" />
+                <TextView android:id="@+id/bankForwardCounters" style="@style/StatusRow" />
+                <TextView android:id="@+id/bankForwardLast" style="@style/StatusRow" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
         <!-- Probe -->
         <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"

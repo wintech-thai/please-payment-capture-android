@@ -38,7 +38,11 @@ class AppFilterAdapter(
             binding.toggle.setOnCheckedChangeListener { _, checked ->
                 onToggle(item, checked)
             }
-            binding.forwardRow.visibility = if (item.enabled) View.VISIBLE else View.GONE
+            binding.forwardRow.visibility = if (item.enabled && !item.isForwardManagedBySystem) {
+                View.VISIBLE
+            } else {
+                View.GONE
+            }
             binding.forwardToggle.setOnCheckedChangeListener(null)
             binding.forwardToggle.isChecked = item.forwardToWebhook
             binding.forwardToggle.setOnCheckedChangeListener { _, checked ->

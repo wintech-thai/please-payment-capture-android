@@ -3,6 +3,7 @@ package com.example.notification_agent.net
 import android.util.Log
 import com.example.notification_agent.bank.BankConfig
 import com.example.notification_agent.bank.BankConfigRepository
+import com.example.notification_agent.bank.SupportedBank
 import com.example.notification_agent.status.AgentStatusRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -11,6 +12,8 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
+import java.math.BigDecimal
+import java.math.RoundingMode
 
 /**
  * Primary forwarding mechanism: posts a payment notification to the endpoint of
@@ -19,14 +22,39 @@ import org.json.JSONObject
  * This supersedes the legacy single-URL `WebhookDispatcher`. Each device can
  * hold many bank configs and forward to each independently.
  *
- * The caller is responsible for parsing the captured notification into
- * [amount] / [fromAccount] and picking the right [configId] — that bridge is
- * intentionally not implemented here.
+ * The caller is responsible for parsing the captured notification into a bank,
+ * amount, and source account before calling this dispatcher.
  */
 class BankWebhookDispatcher(
     private val repository: BankConfigRepository,
     private val status: AgentStatusRepository
 ) {
+
+    suspend fun sendWebhookForBank(
+        bankName: String,
+        amount: Double,
+        fromAccount: String?
+    ): Result<Int> {
+        val bank = SupportedBank.fromCode(bankName) ?: run {
+            status.recordBankForward(bankName = bankName, ok = false, error = "unsupported bank")
+            return Result.failure(IllegalArgumentException("unsupported bank '$bankName'"))
+        }
+        val configId = repository.getAll()
+            .firstOrNull { config ->
+                config.isEnabled && SupportedBank.fromCode(config.bankName) == bank
+            }
+            ?.id ?: run {
+            status.recordBankForward(
+                bankName = bank.code,
+                ok = false,
+                error = "no enabled bank endpoint configured"
+            )
+            return Result.failure(
+                IllegalStateException("no enabled bank config for bank '${bank.code}'")
+            )
+        }
+        return sendWebhook(configId = configId, amount = amount, fromAccount = fromAccount)
+    }
 
     /**
      * Forward a payment event to the bank identified by [configId].
@@ -59,15 +87,23 @@ class BankWebhookDispatcher(
 
             AgentHttpClient.client.newCall(builder.build()).execute().use { response ->
                 if (response.isSuccessful) {
-                    status.recordWebhook(ok = true)
+                    status.recordBankForward(bankName = config.bankName, ok = true)
                 } else {
-                    status.recordWebhook(ok = false, error = "HTTP ${response.code}")
+                    status.recordBankForward(
+                        bankName = config.bankName,
+                        ok = false,
+                        error = "HTTP ${response.code}"
+                    )
                 }
                 response.code
             }
         }.onFailure { t ->
             Log.w(TAG, "webhook delivery failed: ${t.message}")
-            status.recordWebhook(ok = false, error = t.message)
+            status.recordBankForward(
+                bankName = repository.get(configId)?.bankName ?: configId,
+                ok = false,
+                error = t.message
+            )
         }
     }
 
@@ -78,15 +114,16 @@ class BankWebhookDispatcher(
     ): String {
         val json = JSONObject()
             // Always-present fields.
-            .put("PaymentAmount", amount)
-            .put("RemainAmount", 0.00)
+            .put("PaymentAmount", toMoneyValue(amount))
+            .put("RemainAmount", toMoneyValue(0.0))
             .put("TxType", "PayIn")
             .put("DestinationBankCode", DEFAULT_DEST_BANK_CODE)
             .put("DestinationAccountNo", DEFAULT_DEST_ACCOUNT_NO)
 
         // Optional fields: only included when present and non-blank.
-        if (config.bankName.isNotBlank()) {
-            json.put("SourceBankCode", config.bankName)
+        val sourceBankCode = SupportedBank.fromCode(config.bankName)?.code.orEmpty()
+        if (sourceBankCode.isNotBlank()) {
+            json.put("SourceBankCode", sourceBankCode)
         }
         if (!fromAccount.isNullOrBlank()) {
             json.put("SourceBankAccountNo", fromAccount)
@@ -100,5 +137,8 @@ class BankWebhookDispatcher(
         private const val DEFAULT_DEST_ACCOUNT_NO = "XX-0032"
         private const val DEFAULT_APPLICATION_TYPE = "backend"
         private val JSON = "application/json; charset=utf-8".toMediaType()
+
+        internal fun toMoneyValue(amount: Double): BigDecimal =
+            BigDecimal.valueOf(amount).setScale(2, RoundingMode.HALF_UP)
     }
 }

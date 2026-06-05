@@ -10,6 +10,7 @@ import com.example.notification_agent.data.FilterRuleEntity
 import com.example.notification_agent.data.MessageEntity
 import com.example.notification_agent.data.MessageRepository
 import com.example.notification_agent.data.SourceType
+import com.example.notification_agent.net.LineBankPaymentParser
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -28,7 +29,8 @@ data class InstalledAppInfo(
 data class AppFilterUiItem(
     val info: InstalledAppInfo,
     val enabled: Boolean,
-    val forwardToWebhook: Boolean
+    val forwardToWebhook: Boolean,
+    val isForwardManagedBySystem: Boolean
 )
 
 class MainViewModel(app: Application) : AndroidViewModel(app) {
@@ -54,10 +56,12 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             .filter { q.isBlank() || it.label.contains(q, true) || it.packageName.contains(q, true) }
             .map { app ->
                 val rule = ruleMap[app.packageName]
+                val isSystemManagedLine = app.packageName == LineBankPaymentParser.LINE_PACKAGE_NAME
                 AppFilterUiItem(
                     info = app,
                     enabled = rule?.enabled == true,
-                    forwardToWebhook = rule?.forwardToWebhook == true
+                    forwardToWebhook = isSystemManagedLine || rule?.forwardToWebhook == true,
+                    isForwardManagedBySystem = isSystemManagedLine
                 )
             }
             .toList()
@@ -76,15 +80,20 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                     sourceKey = item.info.packageName,
                     sourceLabel = item.info.label,
                     enabled = enabled,
-                    // Disabling a rule also disables forwarding to keep the
-                    // invariant "forward implies capture" true.
-                    forwardToWebhook = if (enabled) item.forwardToWebhook else false
+                    forwardToWebhook = if (!enabled) {
+                        false
+                    } else if (item.isForwardManagedBySystem) {
+                        true
+                    } else {
+                        item.forwardToWebhook
+                    }
                 )
             )
         }
     }
 
     fun toggleNotificationForward(item: AppFilterUiItem, forward: Boolean) {
+        if (item.isForwardManagedBySystem) return
         viewModelScope.launch {
             repo.upsertRule(
                 FilterRuleEntity(

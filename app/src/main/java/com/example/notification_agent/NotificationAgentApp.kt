@@ -5,18 +5,26 @@ import android.os.SystemClock
 import android.provider.Settings
 import androidx.room.Room
 import com.example.notification_agent.data.AppDatabase
+import com.example.notification_agent.data.FilterRuleEntity
 import com.example.notification_agent.data.MessageRepository
+import com.example.notification_agent.data.SourceType
 import com.example.notification_agent.bank.BankConfigRepository
 import com.example.notification_agent.data.settings.AgentSettingsRepository
 import com.example.notification_agent.net.BankWebhookDispatcher
 import com.example.notification_agent.net.LivenessProbe
+import com.example.notification_agent.net.LineBankPaymentParser
 import com.example.notification_agent.net.WebhookDispatcher
 import com.example.notification_agent.status.AgentStatusRepository
 import com.example.notification_agent.worker.AgentWatchdogWorker
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 
 /** Process-wide DI container (manual). */
 class NotificationAgentApp : Application() {
 
+    private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val processStartElapsed = SystemClock.elapsedRealtime()
 
     val database: AppDatabase by lazy {
@@ -67,15 +75,25 @@ class NotificationAgentApp : Application() {
     }
 
     val repository: MessageRepository by lazy {
-        MessageRepository(database) { message ->
-            // The forwarding decision has already been made by the repository.
-            // NOTE: this still uses the legacy single-URL webhook. The primary
-            // path is now BankWebhookDispatcher.sendWebhook(configId, amount,
-            // fromAccount) — wire the notification parser to it here.
-            @Suppress("DEPRECATION")
-            webhookDispatcher.enqueue(message)
-            statusRepository.recordCapture()
-        }
+        MessageRepository(
+            db = database,
+            onCaptured = { message ->
+                statusRepository.recordCapture()
+                LineBankPaymentParser.parse(message)?.let { payment ->
+                    bankWebhookDispatcher.sendWebhookForBank(
+                        bankName = payment.bank.code,
+                        amount = payment.amount,
+                        fromAccount = payment.sourceAccount
+                    )
+                }
+            },
+            onForward = { message ->
+                // The legacy single-URL webhook is still kept for backwards
+                // compatibility / instrumentation tests.
+                @Suppress("DEPRECATION")
+                webhookDispatcher.enqueue(message)
+            }
+        )
     }
 
     override fun onCreate() {
@@ -84,6 +102,19 @@ class NotificationAgentApp : Application() {
         // starts. Kept for backwards compatibility / instrumentation tests.
         @Suppress("DEPRECATION")
         webhookDispatcher
+        appScope.launch {
+            repository.ensureDefaultRule(
+                FilterRuleEntity(
+                    sourceType = SourceType.NOTIFICATION,
+                    sourceKey = LineBankPaymentParser.LINE_PACKAGE_NAME,
+                    sourceLabel = applicationContext.getString(
+                        com.example.notification_agent.R.string.notification_source_line
+                    ),
+                    enabled = true,
+                    forwardToWebhook = true
+                )
+            )
+        }
         AgentWatchdogWorker.enqueue(this)
     }
 

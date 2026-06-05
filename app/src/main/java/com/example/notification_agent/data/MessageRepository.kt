@@ -30,6 +30,8 @@ data class CaptureDecision(
  */
 class MessageRepository(
     db: AppDatabase,
+    /** Sink invoked for every message that is successfully persisted. */
+    private val onCaptured: suspend (MessageEntity) -> Unit = {},
     /**
      * Optional sink for messages that pass [CaptureDecision.forward]. The
      * repository only invokes this when a forwarding rule matches; the sink
@@ -49,6 +51,12 @@ class MessageRepository(
     suspend fun upsertRule(rule: FilterRuleEntity) = filterDao.upsert(rule)
 
     suspend fun upsertRules(rules: List<FilterRuleEntity>) = filterDao.upsertAll(rules)
+
+    suspend fun ensureDefaultRule(rule: FilterRuleEntity) {
+        if (filterDao.countByType(rule.sourceType) == 0) {
+            filterDao.upsert(rule)
+        }
+    }
 
     suspend fun deleteRule(type: SourceType, key: String) = filterDao.delete(type, key)
 
@@ -88,8 +96,10 @@ class MessageRepository(
         val decision = resolveDecision(message.sourceType, message.sourceKey)
         if (!decision.capture) return
         val id = messageDao.insert(message)
+        val storedMessage = message.copy(id = id)
+        onCaptured(storedMessage)
         if (decision.forward) {
-            onForward(message.copy(id = id))
+            onForward(storedMessage)
         }
     }
 }

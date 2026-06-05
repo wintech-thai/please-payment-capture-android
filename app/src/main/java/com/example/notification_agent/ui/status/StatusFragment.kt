@@ -5,6 +5,7 @@ import android.text.format.DateUtils
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
@@ -97,6 +98,37 @@ class StatusFragment : Fragment() {
             val ok = if (s.agent.lastWebhookOk == true) getString(R.string.test_ok) else getString(R.string.test_failed)
             getString(R.string.status_last_webhook, ok, formatRelative(s.agent.lastWebhookAt, s.now),
                 s.agent.lastWebhookError ?: "")
+        }
+
+        // Bank forwarding
+        binding.bankForwardCard.isVisible = s.bankEndpoints.configuredCount > 0
+        if (binding.bankForwardCard.isVisible) {
+            binding.bankForwardEnabled.text = getString(
+                R.string.status_bank_endpoint_counts,
+                s.bankEndpoints.configuredCount,
+                s.bankEndpoints.enabledCount
+            )
+            binding.bankForwardCounters.text = getString(
+                R.string.status_bank_counters,
+                s.agent.bankForwardSentCount,
+                s.agent.bankForwardFailedCount
+            )
+            binding.bankForwardLast.text = if (s.agent.lastBankForwardAt == 0L) {
+                getString(R.string.status_no_activity)
+            } else {
+                val ok = if (s.agent.lastBankForwardOk == true) {
+                    getString(R.string.test_ok)
+                } else {
+                    getString(R.string.test_failed)
+                }
+                getString(
+                    R.string.status_last_bank_forward,
+                    s.agent.lastBankForwardBankName ?: "-",
+                    ok,
+                    formatRelative(s.agent.lastBankForwardAt, s.now),
+                    s.agent.lastBankForwardError ?: ""
+                )
+            }
         }
 
         // Probe

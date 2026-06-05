@@ -22,6 +22,13 @@ data class AgentStatus(
     val lastWebhookOk: Boolean? = null,
     val lastWebhookError: String? = null,
 
+    val bankForwardSentCount: Long = 0L,
+    val bankForwardFailedCount: Long = 0L,
+    val lastBankForwardAt: Long = 0L,
+    val lastBankForwardOk: Boolean? = null,
+    val lastBankForwardError: String? = null,
+    val lastBankForwardBankName: String? = null,
+
     val lastCaptureAt: Long = 0L
 )
 
@@ -72,6 +79,24 @@ class AgentStatusRepository {
                 lastWebhookAt = System.currentTimeMillis(),
                 lastWebhookOk = false,
                 lastWebhookError = error
+            )
+        }
+    }
+
+    fun recordBankForward(bankName: String, ok: Boolean, error: String? = null) {
+        _state.update {
+            if (ok) it.copy(
+                bankForwardSentCount = it.bankForwardSentCount + 1,
+                lastBankForwardAt = System.currentTimeMillis(),
+                lastBankForwardOk = true,
+                lastBankForwardError = null,
+                lastBankForwardBankName = bankName
+            ) else it.copy(
+                bankForwardFailedCount = it.bankForwardFailedCount + 1,
+                lastBankForwardAt = System.currentTimeMillis(),
+                lastBankForwardOk = false,
+                lastBankForwardError = error,
+                lastBankForwardBankName = bankName
             )
         }
     }

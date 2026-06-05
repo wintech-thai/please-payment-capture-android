@@ -12,7 +12,6 @@ import com.example.notification_agent.NotificationAgentApp
 import com.example.notification_agent.data.settings.AgentSettings
 import com.example.notification_agent.status.AgentStatus
 import com.example.notification_agent.ui.PermissionHelper
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -27,11 +26,17 @@ data class PermissionsStatus(
     val batteryUnrestricted: Boolean
 )
 
+data class BankEndpointsStatus(
+    val configuredCount: Int,
+    val enabledCount: Int
+)
+
 data class StatusUiState(
     val now: Long,
     val agent: AgentStatus,
     val settings: AgentSettings,
-    val permissions: PermissionsStatus
+    val permissions: PermissionsStatus,
+    val bankEndpoints: BankEndpointsStatus
 )
 
 class StatusViewModel(app: Application) : AndroidViewModel(app) {
@@ -54,17 +59,31 @@ class StatusViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     val state: StateFlow<StatusUiState> = combine(
-        ticker, agent.statusRepository.state, agent.settingsRepository.settings, permissions
-    ) { now, status, settings, perms ->
-        StatusUiState(now, status, settings, perms)
+        ticker,
+        agent.statusRepository.state,
+        agent.settingsRepository.settings,
+        permissions,
+        agent.bankConfigRepository.configs
+    ) { now, status, settings, perms, bankConfigs ->
+        StatusUiState(
+            now = now,
+            agent = status,
+            settings = settings,
+            permissions = perms,
+            bankEndpoints = BankEndpointsStatus(
+                configuredCount = bankConfigs.size,
+                enabledCount = bankConfigs.count { it.isEnabled }
+            )
+        )
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),
         initialValue = StatusUiState(
-            System.currentTimeMillis(),
-            agent.statusRepository.state.value,
-            AgentSettings(),
-            readPermissions(app)
+            now = System.currentTimeMillis(),
+            agent = agent.statusRepository.state.value,
+            settings = AgentSettings(),
+            permissions = readPermissions(app),
+            bankEndpoints = BankEndpointsStatus(configuredCount = 0, enabledCount = 0)
         )
     )
 

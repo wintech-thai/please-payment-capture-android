@@ -65,11 +65,15 @@
     <string name="status_perm_battery">Battery optimisation disabled</string>
 
     <string name="status_webhook">Webhook</string>
+    <string name="status_bank_forward">Bank forwarding</string>
     <string name="status_probe">Liveness probe</string>
     <string name="status_enabled">Enabled</string>
     <string name="status_no_activity">No activity yet</string>
     <string name="status_webhook_counters">Sent %1$d • Failed %2$d • Queued %3$d</string>
+    <string name="status_bank_counters">Sent %1$d • Failed %2$d</string>
     <string name="status_last_webhook">Last delivery: %1$s • %2$s %3$s</string>
+    <string name="status_bank_endpoint_counts">Configured %1$d • Enabled %2$d</string>
+    <string name="status_last_bank_forward">Last bank delivery: %1$s • %2$s • %3$s %4$s</string>
     <string name="status_last_probe">Last ping: %1$s • %2$s • %3$d ms</string>
     <string name="status_next_probe">Next ping in %1$d s</string>
     <string name="status_next_probe_pending">Next ping scheduled…</string>
@@ -90,6 +94,7 @@
     <!-- Notification filters -->
     <string name="search_apps">Search apps</string>
     <string name="show_system_apps">Show system apps</string>
+    <string name="notification_source_line">LINE</string>
 
     <!-- SMS filters -->
     <string name="sms_filter_help">Add a phone number, sender ID or keyword. The message is captured when the sender contains any enabled rule (case-insensitive). Leave the list empty to capture everything.</string>

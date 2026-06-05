@@ -25,6 +25,10 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -80,6 +84,7 @@ private sealed interface Screen {
 
 @Composable
 private fun BankConfigRoot(viewModel: BankConfigViewModel, onFinish: () -> Unit) {
+    val configs by viewModel.configs.collectAsStateWithLifecycle()
     val pinEnabled by viewModel.pinEnabled.collectAsStateWithLifecycle()
     var unlocked by remember { mutableStateOf(false) }
 
@@ -102,6 +107,7 @@ private fun BankConfigRoot(viewModel: BankConfigViewModel, onFinish: () -> Unit)
         )
         is Screen.Editor -> BankEditorScreen(
             existing = s.config,
+            existingConfigs = configs,
             onCancel = { screen = Screen.List },
             onSave = { config, isNew ->
                 viewModel.save(config, isNew)
@@ -231,12 +237,14 @@ private fun BankRow(
 @Composable
 private fun BankEditorScreen(
     existing: BankConfig?,
+    existingConfigs: List<BankConfig>,
     onCancel: () -> Unit,
     onSave: (BankConfig, Boolean) -> Unit
 ) {
     val isNew = existing == null
     val hasSavedApiKey = !existing?.apiKey.isNullOrBlank()
-    var bankName by remember { mutableStateOf(existing?.bankName.orEmpty()) }
+    var selectedBank by remember { mutableStateOf(SupportedBank.fromCode(existing?.bankName)) }
+    var bankMenuExpanded by remember { mutableStateOf(false) }
     var endpointUrl by remember { mutableStateOf(existing?.endpointUrl.orEmpty()) }
     var apiKey by remember { mutableStateOf("") }
     var apiKeyDirty by remember { mutableStateOf(false) }
@@ -244,7 +252,10 @@ private fun BankEditorScreen(
     var enabled by remember { mutableStateOf(existing?.isEnabled ?: true) }
     var showErrors by remember { mutableStateOf(false) }
 
-    val nameError = bankName.isBlank()
+    val nameError = selectedBank == null
+    val duplicateBankError = selectedBank != null && existingConfigs.any { config ->
+        config.id != existing?.id && SupportedBank.fromCode(config.bankName) == selectedBank
+    }
     val urlError = !endpointUrl.startsWith("http://") && !endpointUrl.startsWith("https://")
 
     Scaffold(
@@ -268,17 +279,46 @@ private fun BankEditorScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            OutlinedTextField(
-                value = bankName,
-                onValueChange = { bankName = it },
-                label = { Text(stringResource(R.string.bank_field_name)) },
-                singleLine = true,
-                isError = showErrors && nameError,
-                supportingText = {
-                    if (showErrors && nameError) Text(stringResource(R.string.bank_validation_name))
-                },
-                modifier = Modifier.fillMaxWidth()
-            )
+            ExposedDropdownMenuBox(
+                expanded = bankMenuExpanded,
+                onExpandedChange = { bankMenuExpanded = it }
+            ) {
+                OutlinedTextField(
+                    value = selectedBank?.code.orEmpty(),
+                    onValueChange = {},
+                    label = { Text(stringResource(R.string.bank_field_name)) },
+                    singleLine = true,
+                    readOnly = true,
+                    isError = showErrors && (nameError || duplicateBankError),
+                    supportingText = {
+                        if (showErrors && nameError) {
+                            Text(stringResource(R.string.bank_validation_name))
+                        } else if (showErrors && duplicateBankError) {
+                            Text(stringResource(R.string.bank_validation_duplicate))
+                        }
+                    },
+                    trailingIcon = {
+                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = bankMenuExpanded)
+                    },
+                    modifier = Modifier
+                        .menuAnchor()
+                        .fillMaxWidth()
+                )
+                DropdownMenu(
+                    expanded = bankMenuExpanded,
+                    onDismissRequest = { bankMenuExpanded = false }
+                ) {
+                    SupportedBank.entries.forEach { bank ->
+                        DropdownMenuItem(
+                            text = { Text(bank.code) },
+                            onClick = {
+                                selectedBank = bank
+                                bankMenuExpanded = false
+                            }
+                        )
+                    }
+                }
+            }
             OutlinedTextField(
                 value = endpointUrl,
                 onValueChange = { endpointUrl = it },
@@ -343,7 +383,7 @@ private fun BankEditorScreen(
                 }
                 Button(
                     onClick = {
-                        if (nameError || urlError) {
+                        if (nameError || duplicateBankError || urlError) {
                             showErrors = true
                         } else {
                             val savedApiKey = when {
@@ -351,7 +391,7 @@ private fun BankEditorScreen(
                                 else -> existing?.apiKey.orEmpty()
                             }
                             val saved = (existing ?: BankConfig()).copy(
-                                bankName = bankName.trim(),
+                                bankName = requireNotNull(selectedBank).code,
                                 endpointUrl = endpointUrl.trim(),
                                 apiKey = savedApiKey,
                                 isEnabled = enabled
