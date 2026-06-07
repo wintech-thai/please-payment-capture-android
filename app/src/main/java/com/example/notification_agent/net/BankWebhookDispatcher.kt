@@ -11,7 +11,6 @@ import okhttp3.Credentials
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
-import org.json.JSONObject
 import java.math.BigDecimal
 import java.math.RoundingMode
 
@@ -59,7 +58,7 @@ class BankWebhookDispatcher(
     /**
      * Forward a payment event to the bank identified by [configId].
      *
-     * @param amount      Payment amount, emitted as `PaymentAmount` (Float).
+     * @param amount      Payment amount, emitted as numeric `PaymentAmount`.
      * @param fromAccount Optional source account number. When non-null/non-blank
      *                    it is emitted as `SourceBankAccountNo`.
      * @return [Result] with the HTTP status code on success.
@@ -75,7 +74,11 @@ class BankWebhookDispatcher(
             require(config.isEnabled) { "bank config '${config.bankName}' is disabled" }
             require(config.endpointUrl.isNotBlank()) { "endpoint url is blank" }
 
-            val body = buildJson(config, amount, fromAccount).toRequestBody(JSON)
+            val body = buildJson(
+                bankName = config.bankName,
+                amount = amount,
+                fromAccount = fromAccount
+            ).toRequestBody(JSON)
             val builder = Request.Builder()
                 .url(config.endpointUrl)
                 .post(body)
@@ -108,37 +111,60 @@ class BankWebhookDispatcher(
     }
 
     private fun buildJson(
-        config: BankConfig,
+        bankName: String,
         amount: Double,
         fromAccount: String?
-    ): String {
-        val json = JSONObject()
-            // Always-present fields.
-            .put("PaymentAmount", toMoneyValue(amount))
-            .put("RemainAmount", toMoneyValue(0.0))
-            .put("TxType", "PayIn")
-            .put("DestinationBankCode", DEFAULT_DEST_BANK_CODE)
-            .put("DestinationAccountNo", DEFAULT_DEST_ACCOUNT_NO)
-
-        // Optional fields: only included when present and non-blank.
-        val sourceBankCode = SupportedBank.fromCode(config.bankName)?.code.orEmpty()
-        if (sourceBankCode.isNotBlank()) {
-            json.put("SourceBankCode", sourceBankCode)
-        }
-        if (!fromAccount.isNullOrBlank()) {
-            json.put("SourceBankAccountNo", fromAccount)
-        }
-        return json.toString()
-    }
+    ): String = Companion.buildJson(bankName = bankName, amount = amount, fromAccount = fromAccount)
 
     companion object {
         private const val TAG = "BankWebhookDispatcher"
-        private const val DEFAULT_DEST_BANK_CODE = "TMB"
-        private const val DEFAULT_DEST_ACCOUNT_NO = "XX-0032"
+        internal const val HTTP_METHOD = "POST"
         private const val DEFAULT_APPLICATION_TYPE = "backend"
         private val JSON = "application/json; charset=utf-8".toMediaType()
 
         internal fun toMoneyValue(amount: Double): BigDecimal =
             BigDecimal.valueOf(amount).setScale(2, RoundingMode.HALF_UP)
+
+        internal fun buildJson(
+            bankName: String,
+            amount: Double,
+            fromAccount: String?
+        ): String {
+            val fields = linkedMapOf<String, String>()
+            fields["PaymentAmount"] = toMoneyValue(amount).toPlainString()
+            fields["RemainAmount"] = toMoneyValue(0.0).toPlainString()
+            fields["TxType"] = jsonString("PayIn")
+
+            val sourceBankCode = SupportedBank.fromCode(bankName)?.code.orEmpty()
+            if (sourceBankCode.isNotBlank()) {
+                fields["SourceBankCode"] = jsonString(sourceBankCode)
+            }
+            if (!fromAccount.isNullOrBlank()) {
+                fields["SourceBankAccountNo"] = jsonString(fromAccount)
+            }
+            return fields.entries.joinToString(
+                prefix = "{",
+                postfix = "}",
+                separator = ","
+            ) { (key, value) -> "\"$key\":$value" }
+        }
+
+        private fun jsonString(value: String): String =
+            buildString(value.length + 2) {
+                append('"')
+                value.forEach { ch ->
+                    when (ch) {
+                        '\\' -> append("\\\\")
+                        '"' -> append("\\\"")
+                        '\b' -> append("\\b")
+                        '\u000C' -> append("\\f")
+                        '\n' -> append("\\n")
+                        '\r' -> append("\\r")
+                        '\t' -> append("\\t")
+                        else -> append(ch)
+                    }
+                }
+                append('"')
+            }
     }
 }

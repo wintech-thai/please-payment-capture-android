@@ -16,7 +16,7 @@ data class BankConfig(
     val bankName: String = "",
     /** Full webhook endpoint URL (may contain a `{bankAccountId}` segment). */
     val endpointUrl: String = "",
-    /** Optional custom token sent as the `API_KEY` header when non-blank. */
+    /** Optional API key sent via HTTP Basic auth as username `api`. */
     val apiKey: String = "",
     /** When false the config is kept but skipped by the dispatcher. */
     val isEnabled: Boolean = true

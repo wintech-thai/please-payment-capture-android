@@ -1,0 +1,12 @@
+{
+  "hooks": {
+    "BeforeTool": [
+      {
+        "type": "command",
+        "command": "rtk hook gemini",
+        "cwd": ".",
+        "timeout": 5
+      }
+    ]
+  }
+}
