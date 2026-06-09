@@ -21,6 +21,11 @@ import kotlinx.coroutines.launch
 class NotificationCaptureService : NotificationListenerService() {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val processedCache = object : LinkedHashMap<String, Long>(20, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Long>?): Boolean {
+            return size > 50
+        }
+    }
 
     override fun onListenerDisconnected() {
         // Ask the system to rebind us as soon as it can.
@@ -54,6 +59,17 @@ class NotificationCaptureService : NotificationListenerService() {
 
         val pkg = notification.packageName
         if (LineBankPaymentParser.parseNotification(pkg, title, text) == null) return
+
+        val contentKey = "${notification.key}:$title:$text"
+        val now = System.currentTimeMillis()
+        synchronized(processedCache) {
+            val lastSeen = processedCache[contentKey]
+            if (lastSeen != null && (now - lastSeen) < 10_000) {
+                return
+            }
+            processedCache[contentKey] = now
+        }
+
         val label = runCatching {
             val pm = packageManager
             pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString()

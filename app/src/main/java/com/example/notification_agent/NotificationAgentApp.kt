@@ -12,6 +12,7 @@ import com.example.notification_agent.bank.BankConfigRepository
 import com.example.notification_agent.data.settings.AgentSettingsRepository
 import com.example.notification_agent.net.BankWebhookDispatcher
 import com.example.notification_agent.net.LivenessProbe
+import com.example.notification_agent.net.CrashReporter
 import com.example.notification_agent.net.LineBankPaymentParser
 import com.example.notification_agent.net.WebhookDispatcher
 import com.example.notification_agent.status.AgentStatusRepository
@@ -98,6 +99,8 @@ class NotificationAgentApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        CrashReporter.initialize(this, deviceId)
+
         // Eagerly initialise the legacy dispatcher so its consumer coroutine
         // starts. Kept for backwards compatibility / instrumentation tests.
         @Suppress("DEPRECATION")

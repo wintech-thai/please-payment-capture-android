@@ -13,13 +13,13 @@ plugins {
 // Read the embedded webhook bearer token from local.properties
 // (key: agent.webhook.token). Falls back to "dev-token" so debug
 // builds still compile on machines that haven't configured it.
-val agentWebhookToken: String = run {
+val agentDebugToken: String = run {
     val props = Properties()
     val file = rootProject.file("local.properties")
     if (file.exists()) file.inputStream().use(props::load)
-    props.getProperty("agent.webhook.token")
-        ?: System.getenv("AGENT_WEBHOOK_TOKEN")
-        ?: "dev-token"
+    props.getProperty("agent.debug.token")
+        ?: System.getenv("AGENT_DEBUG_TOKEN")
+        ?: ""
 }
 
 val releaseKeystorePath: String? = System.getenv("KEYSTORE_FILE")
@@ -62,7 +62,7 @@ extensions.configure<ApplicationExtension> {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        buildConfigField("String", "AGENT_WEBHOOK_TOKEN", "\"$agentWebhookToken\"")
+        buildConfigField("String", "AGENT_DEBUG_TOKEN", "\"$agentDebugToken\"")
         buildConfigField("String", "GIT_COMMIT_SHA", "\"$gitCommitSha\"")
     }
 

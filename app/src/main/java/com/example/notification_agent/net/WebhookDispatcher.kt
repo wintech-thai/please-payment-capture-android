@@ -15,6 +15,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -58,13 +59,37 @@ class WebhookDispatcher(
                     pending = (pending - 1).coerceAtLeast(0)
                     status.setWebhookQueueDepth(pending)
                 }
-                runCatching { send(message) }
-                    .onFailure { t ->
-                        Log.w(TAG, "webhook delivery failed: ${t.javaClass.simpleName}")
-                        status.recordWebhook(ok = false, error = t.message)
-                    }
+                withRetry { send(message) }
             }
         }
+    }
+
+    private suspend fun <T> withRetry(
+        maxRetries: Int = 3,
+        initialDelay: Long = 1000,
+        block: suspend () -> T
+    ): T? {
+        var currentDelay = initialDelay
+        repeat(maxRetries) { attempt ->
+            try {
+                return block()
+            } catch (e: Exception) {
+                val shouldRetry = when (e) {
+                    is IOException -> true
+                    is IllegalStateException -> e.message?.contains("HTTP 5") == true
+                    else -> false
+                }
+                if (!shouldRetry || attempt == maxRetries - 1) {
+                    Log.w(TAG, "webhook delivery failed after ${attempt + 1} attempts: ${e.javaClass.simpleName}")
+                    status.recordWebhook(ok = false, error = e.message)
+                    return null
+                }
+                Log.w(TAG, "Attempt ${attempt + 1} failed, retrying in ${currentDelay}ms: ${e.message}")
+                delay(currentDelay)
+                currentDelay *= 2
+            }
+        }
+        return null
     }
 
     /** Schedule the message for delivery. Never blocks the caller. */

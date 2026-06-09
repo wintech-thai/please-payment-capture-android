@@ -25,9 +25,6 @@ class LivenessProbe(
     private val statusProvider: () -> ProbePayload
 ) {
 
-    private val embeddedBearerToken: String? = BuildConfig.AGENT_WEBHOOK_TOKEN
-        .takeUnless { it.isBlank() }
-
     data class ProbePayload(
         val uptimeSec: Long,
         val lastCaptureTs: Long,
@@ -50,7 +47,7 @@ class LivenessProbe(
         val request = Request.Builder()
             .url(current.probeUrl)
             .post(body)
-            .withAgentHeaders(embeddedBearerToken)
+            .withAgentHeaders(current.webhookBearerToken)
             .build()
         val started = SystemClock.elapsedRealtime()
         val result = runCatching {
@@ -81,4 +78,3 @@ class LivenessProbe(
         private val JSON = "application/json; charset=utf-8".toMediaType()
     }
 }
-

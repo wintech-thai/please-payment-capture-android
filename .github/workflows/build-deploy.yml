@@ -51,10 +51,11 @@ jobs:
 
       - name: Build release APK
         env:
-          KEYSTORE_FILE: ${{ steps.keystore.outputs.path }}
+          KEYSTORE_FILE: ${{ secrets.KEYSTORE }}
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          AGENT_DEBUG_TOKEN: ${{ secrets.AGENT_DEBUG_TOKEN }}
         run: ./gradlew :app:assembleRelease --no-daemon
 
       # Read versionName/versionCode straight from AGP output metadata so the

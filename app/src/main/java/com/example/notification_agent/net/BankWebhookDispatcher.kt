@@ -6,11 +6,13 @@ import com.example.notification_agent.bank.BankConfigRepository
 import com.example.notification_agent.bank.SupportedBank
 import com.example.notification_agent.status.AgentStatusRepository
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import okhttp3.Credentials
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import java.io.IOException
 import java.math.BigDecimal
 import java.math.RoundingMode
 
@@ -52,7 +54,35 @@ class BankWebhookDispatcher(
                 IllegalStateException("no enabled bank config for bank '${bank.code}'")
             )
         }
-        return sendWebhook(configId = configId, amount = amount, fromAccount = fromAccount)
+        return withRetry {
+            sendWebhook(configId = configId, amount = amount, fromAccount = fromAccount)
+        }
+    }
+
+    private suspend fun <T> withRetry(
+        maxRetries: Int = 3,
+        initialDelay: Long = 1000,
+        block: suspend () -> Result<T>
+    ): Result<T> {
+        var currentDelay = initialDelay
+        repeat(maxRetries) { attempt ->
+            val result = block()
+            if (result.isSuccess) return result
+            
+            val error = result.exceptionOrNull()
+            val shouldRetry = when {
+                error is IOException -> true
+                error is IllegalStateException && error.message?.startsWith("HTTP 5") == true -> true
+                else -> false
+            }
+            
+            if (!shouldRetry || attempt == maxRetries - 1) return result
+            
+            Log.w(TAG, "Attempt ${attempt + 1} failed, retrying in ${currentDelay}ms: ${error?.message}")
+            delay(currentDelay)
+            currentDelay *= 2
+        }
+        return block() // Should not be reached due to repeat loop logic
     }
 
     /**
@@ -91,14 +121,16 @@ class BankWebhookDispatcher(
             AgentHttpClient.client.newCall(builder.build()).execute().use { response ->
                 if (response.isSuccessful) {
                     status.recordBankForward(bankName = config.bankName, ok = true)
+                    response.code
                 } else {
+                    val errorMsg = "HTTP ${response.code}"
                     status.recordBankForward(
                         bankName = config.bankName,
                         ok = false,
-                        error = "HTTP ${response.code}"
+                        error = errorMsg
                     )
+                    error(errorMsg)
                 }
-                response.code
             }
         }.onFailure { t ->
             Log.w(TAG, "webhook delivery failed: ${t.message}")
