@@ -51,7 +51,7 @@ jobs:
 
       - name: Build release APK
         env:
-          KEYSTORE_FILE: ${{ secrets.KEYSTORE }}
+          KEYSTORE_FILE: ${{ steps.keystore.outputs.path }}
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
