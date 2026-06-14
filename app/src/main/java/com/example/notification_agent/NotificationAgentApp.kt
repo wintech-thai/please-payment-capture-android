@@ -1,7 +1,6 @@
 package com.example.notification_agent
 
 import android.app.Application
-import android.os.SystemClock
 import android.provider.Settings
 import androidx.room.Room
 import com.example.notification_agent.data.AppDatabase
@@ -26,7 +25,6 @@ import kotlinx.coroutines.launch
 class NotificationAgentApp : Application() {
 
     private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    private val processStartElapsed = SystemClock.elapsedRealtime()
 
     val database: AppDatabase by lazy {
         Room.databaseBuilder(this, AppDatabase::class.java, "notification_agent.db")
@@ -61,17 +59,10 @@ class NotificationAgentApp : Application() {
 
     val livenessProbe: LivenessProbe by lazy {
         LivenessProbe(
+            context = applicationContext,
             settings = settingsRepository,
-            status = statusRepository,
-            deviceId = deviceId,
-            statusProvider = {
-                val s = statusRepository.state.value
-                LivenessProbe.ProbePayload(
-                    uptimeSec = (SystemClock.elapsedRealtime() - processStartElapsed) / 1000L,
-                    lastCaptureTs = s.lastCaptureAt,
-                    queuedWebhooks = s.webhookQueueDepth
-                )
-            }
+            bankConfigs = bankConfigRepository,
+            status = statusRepository
         )
     }
 

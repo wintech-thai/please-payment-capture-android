@@ -16,6 +16,9 @@ class BankConfigViewModel(app: Application) : AndroidViewModel(app) {
     val configs: StateFlow<List<BankConfig>> = repository.configs
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
+    val globalConfig: StateFlow<BankGlobalConfig> = repository.globalConfig
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), BankGlobalConfig())
+
     val pinEnabled: StateFlow<Boolean> = repository.pinEnabled
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
@@ -23,6 +26,10 @@ class BankConfigViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             if (isNew) repository.add(config) else repository.update(config)
         }
+    }
+
+    fun updateGlobal(config: BankGlobalConfig) {
+        viewModelScope.launch { repository.updateGlobal(config) }
     }
 
     fun setEnabled(id: String, enabled: Boolean) {

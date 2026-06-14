@@ -1,57 +1,74 @@
 package com.example.notification_agent.net
 
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.os.BatteryManager
 import android.os.Build
 import android.os.SystemClock
 import android.util.Log
 import com.example.notification_agent.BuildConfig
+import com.example.notification_agent.bank.BankConfigRepository
 import com.example.notification_agent.data.settings.AgentSettingsRepository
-import com.example.notification_agent.net.AgentHttpClient.withAgentHeaders
 import com.example.notification_agent.status.AgentStatusRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
+import okhttp3.Credentials
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.util.concurrent.TimeUnit
+import java.io.RandomAccessFile
 
 data class ProbeResult(val ok: Boolean, val httpCode: Int, val latencyMs: Long, val error: String? = null)
 
-/** Sends a single liveness heartbeat POST. Honours the per-call timeout. */
+/** Sends a single liveness heartbeat POST. */
 class LivenessProbe(
+    private val context: Context,
     private val settings: AgentSettingsRepository,
-    private val status: AgentStatusRepository,
-    private val deviceId: String,
-    private val statusProvider: () -> ProbePayload
+    private val bankConfigs: BankConfigRepository,
+    private val status: AgentStatusRepository
 ) {
-
-    data class ProbePayload(
-        val uptimeSec: Long,
-        val lastCaptureTs: Long,
-        val queuedWebhooks: Int
-    )
 
     suspend fun ping(): ProbeResult = withContext(Dispatchers.IO) {
         val current = settings.settings.first()
-        if (current.probeUrl.isBlank()) {
+        val global = bankConfigs.getGlobal()
+        
+        val probeUrl = current.probeUrl.ifBlank {
+            // Try to derive from global endpoint if probeUrl is blank
+            if (global.endpointUrl.isNotBlank()) {
+                global.endpointUrl.replace("NotifyLineMessage", "NotifyHeartbeat")
+            } else ""
+        }
+        
+        if (probeUrl.isBlank()) {
             return@withContext ProbeResult(false, -1, 0, "no url")
         }
-        val payload = statusProvider()
-        val body = buildJson(payload).toRequestBody(JSON)
+
+        val apiKey = current.webhookBearerToken.ifBlank { global.apiKey }
+
+        val body = buildJson().toRequestBody(JSON)
         val client = AgentHttpClient.client.newBuilder()
             .callTimeout(current.probeTimeoutMs.toLong(), TimeUnit.MILLISECONDS)
             .connectTimeout(current.probeTimeoutMs.toLong(), TimeUnit.MILLISECONDS)
             .readTimeout(current.probeTimeoutMs.toLong(), TimeUnit.MILLISECONDS)
             .writeTimeout(current.probeTimeoutMs.toLong(), TimeUnit.MILLISECONDS)
             .build()
+
         val request = Request.Builder()
-            .url(current.probeUrl)
+            .url(probeUrl)
             .post(body)
-            .withAgentHeaders(current.webhookBearerToken)
-            .build()
+            .header("Accept", "application/json")
+            .header("User-Agent", "NotificationAgent/${BuildConfig.VERSION_NAME}")
+
+        if (apiKey.isNotBlank()) {
+            request.header("Authorization", Credentials.basic("api", apiKey))
+        }
+
         val started = SystemClock.elapsedRealtime()
         val result = runCatching {
-            client.newCall(request).execute().use { response ->
+            client.newCall(request.build()).execute().use { response ->
                 ProbeResult(
                     ok = response.isSuccessful,
                     httpCode = response.code,
@@ -59,19 +76,44 @@ class LivenessProbe(
                 )
             }
         }.getOrElse { t ->
-            Log.w(TAG, "probe failed: ${t.javaClass.simpleName}: ${t.message}")
+            Log.w(TAG, "heartbeat failed: ${t.javaClass.simpleName}: ${t.message}")
             ProbeResult(false, -1, SystemClock.elapsedRealtime() - started, t.message)
         }
         status.recordProbe(result.ok, result.latencyMs)
         result
     }
 
-    private fun buildJson(p: ProbePayload): String = """
-        {"deviceId":"$deviceId","device":"${Build.MANUFACTURER} ${Build.MODEL}",
-        "agentVersion":"${BuildConfig.VERSION_NAME}","ts":${System.currentTimeMillis()},
-        "uptimeSec":${p.uptimeSec},"lastCaptureTs":${p.lastCaptureTs},
-        "queuedWebhooks":${p.queuedWebhooks}}
-    """.trimIndent().replace("\n", "")
+    private fun buildJson(): String {
+        val cpu = Runtime.getRuntime().availableProcessors().toString()
+        val memory = getMemoryInfo()
+        val osVersion = Build.VERSION.RELEASE
+        val appVersion = BuildConfig.VERSION_NAME
+        val battery = getBatteryLevel().toString()
+
+        return """
+            {"CPU":"$cpu","Memory":"$memory","OsVersion":"$osVersion","AppVersion":"$appVersion","Baterry":"$battery"}
+        """.trimIndent().replace("\n", "").replace(" ", "")
+    }
+
+    private fun getMemoryInfo(): String {
+        return try {
+            val reader = RandomAccessFile("/proc/meminfo", "r")
+            val load = reader.readLine() ?: ""
+            reader.close()
+            val match = Regex("(\\d+)").find(load)
+            val kb = match?.value?.toLong() ?: 0L
+            (kb / 1024 / 1024).toString() // Total RAM in GB
+        } catch (e: Exception) {
+            "0"
+        }
+    }
+
+    private fun getBatteryLevel(): Int {
+        val intent = context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+        val level = intent?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
+        val scale = intent?.getIntExtra(BatteryManager.EXTRA_SCALE, -1) ?: -1
+        return if (level >= 0 && scale > 0) (level * 100 / scale) else -1
+    }
 
     companion object {
         private const val TAG = "LivenessProbe"

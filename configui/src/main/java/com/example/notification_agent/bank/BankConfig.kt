@@ -21,3 +21,13 @@ data class BankConfig(
     /** When false the config is kept but skipped by the dispatcher. */
     val isEnabled: Boolean = true
 )
+
+/**
+ * Global bank forwarding configuration. Consolidates multiple banks into a single endpoint.
+ */
+data class BankGlobalConfig(
+    val endpointUrl: String = "",
+    val apiKey: String = "",
+    val agentId: String = "",
+    val enabledBanks: Set<String> = emptySet()
+)

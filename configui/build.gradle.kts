@@ -1,11 +1,10 @@
 import com.android.build.api.dsl.LibraryExtension
 import org.gradle.kotlin.dsl.configure
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
-import org.jetbrains.kotlin.gradle.dsl.KotlinAndroidProjectExtension
+import org.gradle.kotlin.dsl.kotlin
 
 plugins {
     alias(libs.plugins.android.library)
-    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
 }
 
@@ -26,7 +25,7 @@ extensions.configure<LibraryExtension> {
     }
 }
 
-extensions.configure<KotlinAndroidProjectExtension> {
+kotlin {
     compilerOptions {
         jvmTarget.set(JvmTarget.JVM_11)
     }

@@ -123,7 +123,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
-                android:hint="@string/settings_probe_url">
+                android:hint="@string/probe_url">
                 <com.google.android.material.textfield.TextInputEditText
                     android:id="@+id/probeUrl"
                     android:layout_width="match_parent"

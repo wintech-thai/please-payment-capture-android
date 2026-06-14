@@ -1,9 +1,14 @@
 <resources>
     <!-- Bank config (Compose) -->
-    <string name="title_bank_configs">Bank Endpoints</string>
+    <string name="title_bank_configs">Bank Configuration</string>
     <string name="bank_configs_empty">No bank endpoints yet. Tap + to add one.</string>
     <string name="bank_add">Add Bank</string>
     <string name="bank_edit">Edit Bank</string>
+    <string name="bank_global_settings">Global Settings</string>
+    <string name="bank_global_endpoint">Global Notification URL</string>
+    <string name="bank_global_apikey">Global API Key</string>
+    <string name="bank_global_agentid">Agent ID (Extracted from URL)</string>
+    <string name="bank_enabled_banks">Enabled Banks</string>
     <string name="bank_field_name">Bank name</string>
     <string name="bank_field_endpoint">Endpoint URL</string>
     <string name="bank_field_apikey">API key (optional)</string>
@@ -33,4 +38,9 @@
     <string name="pin_invalid">PIN must be exactly 4 digits</string>
     <string name="pin_enabled_label">PIN lock is on</string>
     <string name="pin_disabled_label">PIN lock is off</string>
+
+    <string name="dialog_success">Success</string>
+    <string name="dialog_error">Error</string>
+    <string name="dialog_ok">OK</string>
+    <string name="save_success">Configuration saved successfully</string>
 </resources>

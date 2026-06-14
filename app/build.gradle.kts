@@ -1,15 +1,13 @@
 import com.android.build.api.dsl.ApplicationExtension
 import org.gradle.kotlin.dsl.configure
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
-import org.jetbrains.kotlin.gradle.dsl.KotlinAndroidProjectExtension
+import org.gradle.kotlin.dsl.kotlin
 import java.util.Properties
 
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.ksp)
 }
-
 // Read the embedded webhook bearer token from local.properties
 // (key: agent.webhook.token). Falls back to "dev-token" so debug
 // builds still compile on machines that haven't configured it.
@@ -104,7 +102,7 @@ extensions.configure<ApplicationExtension> {
     }
 }
 
-extensions.configure<KotlinAndroidProjectExtension> {
+kotlin {
     compilerOptions {
         jvmTarget.set(JvmTarget.JVM_11)
     }

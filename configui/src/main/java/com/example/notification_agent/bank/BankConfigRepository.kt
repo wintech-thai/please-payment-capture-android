@@ -5,6 +5,7 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import androidx.datastore.preferences.core.stringSetPreferencesKey
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -26,6 +27,10 @@ class BankConfigRepository(private val context: Context) {
 
     private object Keys {
         val Configs = stringPreferencesKey("configs_json")
+        val GlobalUrl = stringPreferencesKey("bank_global_url")
+        val GlobalApiKey = stringPreferencesKey("bank_global_apikey")
+        val GlobalAgentId = stringPreferencesKey("bank_global_agentid")
+        val GlobalEnabledBanks = stringSetPreferencesKey("bank_global_enabled_banks")
         val Pin = stringPreferencesKey("launch_pin")
         val PinEnabled = booleanPreferencesKey("launch_pin_enabled")
     }
@@ -35,12 +40,33 @@ class BankConfigRepository(private val context: Context) {
         decode(prefs[Keys.Configs])
     }
 
+    /** Live global configuration. */
+    val globalConfig: Flow<BankGlobalConfig> = context.bankConfigStore.data.map { prefs ->
+        BankGlobalConfig(
+            endpointUrl = prefs[Keys.GlobalUrl] ?: "",
+            apiKey = prefs[Keys.GlobalApiKey] ?: "",
+            agentId = prefs[Keys.GlobalAgentId] ?: "",
+            enabledBanks = prefs[Keys.GlobalEnabledBanks] ?: emptySet()
+        )
+    }
+
     /** Whether a launch PIN is configured & enabled. */
     val pinEnabled: Flow<Boolean> = context.bankConfigStore.data.map { prefs ->
         (prefs[Keys.PinEnabled] ?: false) && !prefs[Keys.Pin].isNullOrBlank()
     }
 
     suspend fun getAll(): List<BankConfig> = configs.first()
+
+    suspend fun getGlobal(): BankGlobalConfig = globalConfig.first()
+
+    suspend fun updateGlobal(config: BankGlobalConfig) {
+        context.bankConfigStore.edit { prefs ->
+            prefs[Keys.GlobalUrl] = config.endpointUrl
+            prefs[Keys.GlobalApiKey] = config.apiKey
+            prefs[Keys.GlobalAgentId] = config.agentId
+            prefs[Keys.GlobalEnabledBanks] = config.enabledBanks
+        }
+    }
 
     suspend fun get(id: String): BankConfig? = getAll().firstOrNull { it.id == id }
 

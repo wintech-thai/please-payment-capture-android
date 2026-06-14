@@ -1,7 +1,6 @@
 package com.example.notification_agent.net
 
 import android.util.Log
-import com.example.notification_agent.bank.BankConfig
 import com.example.notification_agent.bank.BankConfigRepository
 import com.example.notification_agent.bank.SupportedBank
 import com.example.notification_agent.status.AgentStatusRepository
@@ -17,14 +16,8 @@ import java.math.BigDecimal
 import java.math.RoundingMode
 
 /**
- * Primary forwarding mechanism: posts a payment notification to the endpoint of
- * a specific [BankConfig].
- *
- * This supersedes the legacy single-URL `WebhookDispatcher`. Each device can
- * hold many bank configs and forward to each independently.
- *
- * The caller is responsible for parsing the captured notification into a bank,
- * amount, and source account before calling this dispatcher.
+ * Primary forwarding mechanism: posts a payment notification to the consolidated
+ * global bank endpoint.
  */
 class BankWebhookDispatcher(
     private val repository: BankConfigRepository,
@@ -40,22 +33,38 @@ class BankWebhookDispatcher(
             status.recordBankForward(bankName = bankName, ok = false, error = "unsupported bank")
             return Result.failure(IllegalArgumentException("unsupported bank '$bankName'"))
         }
-        val configId = repository.getAll()
-            .firstOrNull { config ->
-                config.isEnabled && SupportedBank.fromCode(config.bankName) == bank
-            }
-            ?.id ?: run {
+
+        val globalConfig = repository.getGlobal()
+        if (!globalConfig.enabledBanks.contains(bank.code)) {
             status.recordBankForward(
                 bankName = bank.code,
                 ok = false,
-                error = "no enabled bank endpoint configured"
+                error = "bank is not enabled in global config"
             )
             return Result.failure(
-                IllegalStateException("no enabled bank config for bank '${bank.code}'")
+                IllegalStateException("bank '${bank.code}' is not enabled in global config")
             )
         }
+
+        if (globalConfig.endpointUrl.isBlank()) {
+            status.recordBankForward(
+                bankName = bank.code,
+                ok = false,
+                error = "global endpoint url is not configured"
+            )
+            return Result.failure(
+                IllegalStateException("global endpoint url is not configured")
+            )
+        }
+
         return withRetry {
-            sendWebhook(configId = configId, amount = amount, fromAccount = fromAccount)
+            sendWebhook(
+                endpointUrl = globalConfig.endpointUrl,
+                apiKey = globalConfig.apiKey,
+                bankName = bank.code,
+                amount = amount,
+                fromAccount = fromAccount
+            )
         }
     }
 
@@ -86,46 +95,38 @@ class BankWebhookDispatcher(
     }
 
     /**
-     * Forward a payment event to the bank identified by [configId].
-     *
-     * @param amount      Payment amount, emitted as numeric `PaymentAmount`.
-     * @param fromAccount Optional source account number. When non-null/non-blank
-     *                    it is emitted as `SourceBankAccountNo`.
-     * @return [Result] with the HTTP status code on success.
+     * Forward a payment event to the global endpoint.
      */
     suspend fun sendWebhook(
-        configId: String,
+        endpointUrl: String,
+        apiKey: String,
+        bankName: String,
         amount: Double,
         fromAccount: String?
     ): Result<Int> = withContext(Dispatchers.IO) {
         runCatching {
-            val config = repository.get(configId)
-                ?: error("no bank config for id=$configId")
-            require(config.isEnabled) { "bank config '${config.bankName}' is disabled" }
-            require(config.endpointUrl.isNotBlank()) { "endpoint url is blank" }
-
             val body = buildJson(
-                bankName = config.bankName,
+                bankName = bankName,
                 amount = amount,
                 fromAccount = fromAccount
             ).toRequestBody(JSON)
             val builder = Request.Builder()
-                .url(config.endpointUrl)
+                .url(endpointUrl)
                 .post(body)
                 .header("Accept", "application/json")
                 .header("Onix-Application-Type", DEFAULT_APPLICATION_TYPE)
-            if (config.apiKey.isNotBlank()) {
-                builder.header("Authorization", Credentials.basic("api", config.apiKey))
+            if (apiKey.isNotBlank()) {
+                builder.header("Authorization", Credentials.basic("api", apiKey))
             }
 
             AgentHttpClient.client.newCall(builder.build()).execute().use { response ->
                 if (response.isSuccessful) {
-                    status.recordBankForward(bankName = config.bankName, ok = true)
+                    status.recordBankForward(bankName = bankName, ok = true)
                     response.code
                 } else {
                     val errorMsg = "HTTP ${response.code}"
                     status.recordBankForward(
-                        bankName = config.bankName,
+                        bankName = bankName,
                         ok = false,
                         error = errorMsg
                     )
@@ -135,7 +136,7 @@ class BankWebhookDispatcher(
         }.onFailure { t ->
             Log.w(TAG, "webhook delivery failed: ${t.message}")
             status.recordBankForward(
-                bankName = repository.get(configId)?.bankName ?: configId,
+                bankName = bankName,
                 ok = false,
                 error = t.message
             )
@@ -150,7 +151,6 @@ class BankWebhookDispatcher(
 
     companion object {
         private const val TAG = "BankWebhookDispatcher"
-        internal const val HTTP_METHOD = "POST"
         private const val DEFAULT_APPLICATION_TYPE = "backend"
         private val JSON = "application/json; charset=utf-8".toMediaType()
 
