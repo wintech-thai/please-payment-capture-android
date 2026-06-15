@@ -55,6 +55,7 @@ class SettingsFragment : Fragment() {
         wireProbe()
         wireKeepAlive()
         wireFilters()
+        wireSave()
         renderAdditionalConfigVisibility()
 
         viewLifecycleOwner.lifecycleScope.launch {
@@ -161,6 +162,12 @@ class SettingsFragment : Fragment() {
         }
     }
 
+    private fun wireSave() {
+        binding.saveSettings.setOnClickListener {
+            Toast.makeText(requireContext(), R.string.save_success, Toast.LENGTH_SHORT).show()
+        }
+    }
+
     private fun wireFilters() {
         binding.openNotificationFilters.setOnClickListener {
             findNavController().navigate(R.id.notificationFiltersFragment)
@@ -186,6 +193,11 @@ class SettingsFragment : Fragment() {
 
             if (binding.keepAlive.isChecked != s.keepAliveEnabled)
                 binding.keepAlive.isChecked = s.keepAliveEnabled
+
+            binding.probeStatusIndicator.setBackgroundResource(
+                if (s.probeEnabled) R.drawable.status_indicator_active
+                else R.drawable.status_indicator_inactive
+            )
         } finally {
             suppressBindingChanges = false
         }
@@ -198,15 +210,15 @@ class SettingsFragment : Fragment() {
     private fun applyKeepAliveServiceState() {
         val s = viewModel.settings.value
         val ctx = requireContext().applicationContext
-        if (s.keepAliveEnabled) {
-            AgentForegroundService.start(ctx)
-            if (s.probeEnabled) {
-                AgentForegroundService.scheduleNextProbe(ctx, s.probeIntervalSec)
-            } else {
-                AgentForegroundService.cancelProbe(ctx)
-            }
+        if (s.probeEnabled) {
+            AgentForegroundService.scheduleNextProbe(ctx, s.probeIntervalSec)
         } else {
             AgentForegroundService.cancelProbe(ctx)
+        }
+
+        if (s.keepAliveEnabled) {
+            AgentForegroundService.start(ctx)
+        } else {
             AgentForegroundService.stop(ctx)
         }
     }

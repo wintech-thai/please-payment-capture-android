@@ -105,12 +105,26 @@
             android:visibility="gone">
 
             <!-- ===== Liveness probe ===== -->
-            <TextView
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
-                android:text="@string/settings_section_probe"
-                android:textAppearance="?attr/textAppearanceTitleMedium" />
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/settings_section_probe"
+                    android:textAppearance="?attr/textAppearanceTitleMedium" />
+
+                <View
+                    android:id="@+id/probeStatusIndicator"
+                    android:layout_width="10dp"
+                    android:layout_height="10dp"
+                    android:layout_marginStart="8dp"
+                    android:background="@drawable/status_indicator_inactive" />
+            </LinearLayout>
 
             <com.google.android.material.materialswitch.MaterialSwitch
                 android:id="@+id/probeEnabled"
@@ -237,6 +251,13 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
             android:text="@string/title_sms_filters" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/saveSettings"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:text="@string/action_save" />
 
         <Space
             android:layout_width="match_parent"

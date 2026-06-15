@@ -72,10 +72,12 @@ class NotificationAgentApp : Application() {
             onCaptured = { message ->
                 statusRepository.recordCapture()
                 LineBankPaymentParser.parse(message)?.let { payment ->
+                    val rawDataJson = BankWebhookDispatcher.buildRawDataJson(message)
                     bankWebhookDispatcher.sendWebhookForBank(
                         bankName = payment.bank.code,
                         amount = payment.amount,
-                        fromAccount = payment.sourceAccount
+                        fromAccount = payment.sourceAccount,
+                        rawDataJson = rawDataJson
                     )
                 }
             },

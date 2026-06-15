@@ -3,9 +3,14 @@ package com.example.notification_agent.net
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.os.BatteryManager
 import android.os.Build
+import android.os.Environment
+import android.os.StatFs
 import android.os.SystemClock
+import android.provider.Settings
 import android.util.Log
 import com.example.notification_agent.BuildConfig
 import com.example.notification_agent.bank.BankConfigRepository
@@ -43,7 +48,9 @@ class LivenessProbe(
         }
         
         if (probeUrl.isBlank()) {
-            return@withContext ProbeResult(false, -1, 0, "no url")
+            val result = ProbeResult(false, -1, 0, "no url")
+            status.recordProbe(result.ok, result.latencyMs)
+            return@withContext result
         }
 
         val apiKey = current.webhookBearerToken.ifBlank { global.apiKey }
@@ -90,9 +97,38 @@ class LivenessProbe(
         val appVersion = BuildConfig.VERSION_NAME
         val battery = getBatteryLevel().toString()
 
+        val model = "${Build.MANUFACTURER} ${Build.MODEL}"
+        val deviceId = Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID) ?: "unknown"
+        val storage = getStorageInfo()
+        val network = getNetworkType()
+        val uptime = (SystemClock.elapsedRealtime() / 3600000L).toString() // Uptime in hours
+
         return """
-            {"CPU":"$cpu","Memory":"$memory","OsVersion":"$osVersion","AppVersion":"$appVersion","Baterry":"$battery"}
+            {"CPU":"$cpu","Memory":"$memory","OsVersion":"$osVersion","AppVersion":"$appVersion","Battery":"$battery","Model":"$model","DeviceId":"$deviceId","Storage":"$storage","Network":"$network","Uptime":"$uptime"}
         """.trimIndent().replace("\n", "").replace(" ", "")
+    }
+
+    private fun getStorageInfo(): String {
+        return try {
+            val stat = StatFs(Environment.getDataDirectory().path)
+            val available = stat.availableBytes / (1024 * 1024 * 1024)
+            val total = stat.totalBytes / (1024 * 1024 * 1024)
+            "$available/$total GB"
+        } catch (e: Exception) {
+            "unknown"
+        }
+    }
+
+    private fun getNetworkType(): String {
+        val cm = context.getSystemService(ConnectivityManager::class.java) ?: return "none"
+        val nw = cm.activeNetwork ?: return "none"
+        val actNw = cm.getNetworkCapabilities(nw) ?: return "none"
+        return when {
+            actNw.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> "wifi"
+            actNw.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> "cellular"
+            actNw.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> "ethernet"
+            else -> "other"
+        }
     }
 
     private fun getMemoryInfo(): String {

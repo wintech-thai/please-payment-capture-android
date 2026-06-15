@@ -97,4 +97,5 @@
 
     <string name="save_success">Configuration saved successfully</string>
     <string name="save_error">Error saving configuration: %1$s</string>
+    <string name="action_save">Save Settings</string>
 </resources>

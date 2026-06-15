@@ -34,14 +34,16 @@ class AgentAlarmReceiver : BroadcastReceiver() {
         scope.launch {
             try {
                 val settings = app.settingsRepository.settings.first()
-                if (settings.probeEnabled && settings.probeUrl.isNotBlank()) {
+                if (settings.probeEnabled) {
                     runCatching { app.livenessProbe.ping() }
                         .onFailure { Log.w(TAG, "probe error: ${it.message}") }
                 }
-                if (settings.keepAliveEnabled && settings.probeEnabled) {
+                if (settings.probeEnabled) {
                     AgentForegroundService.scheduleNextProbe(
                         context.applicationContext, settings.probeIntervalSec
                     )
+                }
+                if (settings.keepAliveEnabled) {
                     // Self-heal: make sure the FG service is still up.
                     if (!app.statusRepository.state.value.serviceRunning) {
                         AgentForegroundService.start(context.applicationContext)

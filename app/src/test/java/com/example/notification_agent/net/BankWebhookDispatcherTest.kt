@@ -45,5 +45,18 @@ class BankWebhookDispatcherTest {
 
         assertTrue(json.contains("\"SourceBankAccountNo\":\"X-7985\""))
     }
+
+    @Test
+    fun buildJsonIncludesRawDataObjWhenProvided() {
+        val rawDataJson = "{\"title\":\"Test\"}"
+        val json = BankWebhookDispatcher.buildJson(
+            bankName = "SCB",
+            amount = 10.45,
+            fromAccount = null,
+            rawDataJson = rawDataJson
+        )
+
+        assertTrue(json.contains("\"rawDataObj\":{\"title\":\"Test\"}"))
+    }
 }
 

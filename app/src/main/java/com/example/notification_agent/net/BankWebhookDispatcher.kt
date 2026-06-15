@@ -27,7 +27,8 @@ class BankWebhookDispatcher(
     suspend fun sendWebhookForBank(
         bankName: String,
         amount: Double,
-        fromAccount: String?
+        fromAccount: String?,
+        rawDataJson: String? = null
     ): Result<Int> {
         val bank = SupportedBank.fromCode(bankName) ?: run {
             status.recordBankForward(bankName = bankName, ok = false, error = "unsupported bank")
@@ -63,7 +64,8 @@ class BankWebhookDispatcher(
                 apiKey = globalConfig.apiKey,
                 bankName = bank.code,
                 amount = amount,
-                fromAccount = fromAccount
+                fromAccount = fromAccount,
+                rawDataJson = rawDataJson
             )
         }
     }
@@ -102,13 +104,15 @@ class BankWebhookDispatcher(
         apiKey: String,
         bankName: String,
         amount: Double,
-        fromAccount: String?
+        fromAccount: String?,
+        rawDataJson: String? = null
     ): Result<Int> = withContext(Dispatchers.IO) {
         runCatching {
             val body = buildJson(
                 bankName = bankName,
                 amount = amount,
-                fromAccount = fromAccount
+                fromAccount = fromAccount,
+                rawDataJson = rawDataJson
             ).toRequestBody(JSON)
             val builder = Request.Builder()
                 .url(endpointUrl)
@@ -146,8 +150,14 @@ class BankWebhookDispatcher(
     private fun buildJson(
         bankName: String,
         amount: Double,
-        fromAccount: String?
-    ): String = Companion.buildJson(bankName = bankName, amount = amount, fromAccount = fromAccount)
+        fromAccount: String?,
+        rawDataJson: String?
+    ): String = Companion.buildJson(
+        bankName = bankName,
+        amount = amount,
+        fromAccount = fromAccount,
+        rawDataJson = rawDataJson
+    )
 
     companion object {
         private const val TAG = "BankWebhookDispatcher"
@@ -160,7 +170,8 @@ class BankWebhookDispatcher(
         internal fun buildJson(
             bankName: String,
             amount: Double,
-            fromAccount: String?
+            fromAccount: String?,
+            rawDataJson: String? = null
         ): String {
             val fields = linkedMapOf<String, String>()
             fields["PaymentAmount"] = toMoneyValue(amount).toPlainString()
@@ -174,6 +185,25 @@ class BankWebhookDispatcher(
             if (!fromAccount.isNullOrBlank()) {
                 fields["SourceBankAccountNo"] = jsonString(fromAccount)
             }
+            if (!rawDataJson.isNullOrBlank()) {
+                fields["rawDataObj"] = rawDataJson
+            }
+            return fields.entries.joinToString(
+                prefix = "{",
+                postfix = "}",
+                separator = ","
+            ) { (key, value) -> "\"$key\":$value" }
+        }
+
+        internal fun buildRawDataJson(message: com.example.notification_agent.data.MessageEntity): String {
+            val fields = linkedMapOf<String, String>()
+            fields["id"] = message.id.toString()
+            fields["sourceType"] = jsonString(message.sourceType.name)
+            fields["sourceKey"] = jsonString(message.sourceKey)
+            fields["sourceLabel"] = jsonString(message.sourceLabel.orEmpty())
+            fields["title"] = jsonString(message.title.orEmpty())
+            fields["text"] = jsonString(message.text.orEmpty())
+            fields["timestamp"] = message.timestamp.toString()
             return fields.entries.joinToString(
                 prefix = "{",
                 postfix = "}",

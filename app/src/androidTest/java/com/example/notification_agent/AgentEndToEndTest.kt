@@ -37,6 +37,7 @@ class AgentEndToEndTest {
             it.copy(
                 webhookUrl = "http://10.0.2.2:8088/webhook",
                 webhookEnabled = true,
+                webhookBearerToken = "test-token",
                 probeUrl = "http://10.0.2.2:8088/probe",
                 probeEnabled = true,
                 probeIntervalSec = 15,
