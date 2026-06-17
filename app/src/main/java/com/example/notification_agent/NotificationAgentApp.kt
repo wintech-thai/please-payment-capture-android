@@ -120,6 +120,7 @@ class NotificationAgentApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        com.example.notification_agent.bank.BankWebhookTester.instance = bankWebhookDispatcher
         CrashReporter.initialize(this, deviceId)
 
         // Eagerly initialise the legacy dispatcher so its consumer coroutine

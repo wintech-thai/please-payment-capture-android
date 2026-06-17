@@ -20,7 +20,18 @@ import java.io.IOException
 class BankWebhookDispatcher(
     private val repository: BankConfigRepository,
     private val status: AgentStatusRepository
-) {
+) : com.example.notification_agent.bank.BankWebhookTester {
+
+    override suspend fun testWebhook(config: com.example.notification_agent.bank.BankGlobalConfig): Result<Int> {
+        val dummyRawData = """{"test":true,"timestamp":${System.currentTimeMillis()},"message":"Test from NotificationAgent"}"""
+        Log.d(TAG, "Sending test webhook to ${config.endpointUrl}")
+        return sendWebhook(
+            endpointUrl = config.endpointUrl,
+            apiKey = config.apiKey,
+            bankName = "TEST",
+            rawDataJson = dummyRawData
+        )
+    }
 
     suspend fun sendWebhookForBank(
         bankName: String,
@@ -99,8 +110,11 @@ class BankWebhookDispatcher(
         bankName: String,
         rawDataJson: String? = null
     ): Result<Int> = withContext(Dispatchers.IO) {
+        Log.d(TAG, "Preparing to send webhook to $endpointUrl (bank=$bankName)")
         runCatching {
-            val body = buildJson(rawDataJson).toRequestBody(JSON)
+            val bodyJson = buildJson(rawDataJson)
+            Log.d(TAG, "Webhook body: $bodyJson")
+            val body = bodyJson.toRequestBody(JSON)
             val builder = Request.Builder()
                 .url(endpointUrl)
                 .post(body)
@@ -111,6 +125,7 @@ class BankWebhookDispatcher(
             }
 
             AgentHttpClient.client.newCall(builder.build()).execute().use { response ->
+                Log.d(TAG, "Webhook response: code=${response.code} success=${response.isSuccessful}")
                 if (response.isSuccessful) {
                     status.recordBankForward(bankName = bankName, ok = true)
                     response.code
@@ -125,7 +140,7 @@ class BankWebhookDispatcher(
                 }
             }
         }.onFailure { t ->
-            Log.w(TAG, "webhook delivery failed: ${t.message}")
+            Log.e(TAG, "webhook delivery failed: ${t.message}", t)
             status.recordBankForward(
                 bankName = bankName,
                 ok = false,

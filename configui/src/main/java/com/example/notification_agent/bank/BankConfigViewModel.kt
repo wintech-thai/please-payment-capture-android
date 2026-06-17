@@ -49,4 +49,11 @@ class BankConfigViewModel(app: Application) : AndroidViewModel(app) {
     fun clearPin() {
         viewModelScope.launch { repository.clearPin() }
     }
+
+    suspend fun testWebhook(config: BankGlobalConfig): Result<Int> {
+        val tester = BankWebhookTester.instance ?: return Result.failure(
+            IllegalStateException("Webhook tester not initialized")
+        )
+        return tester.testWebhook(config)
+    }
 }

@@ -271,6 +271,36 @@ private fun BankSettingsScreen(
 
             Spacer(Modifier.weight(1f))
 
+            var testingWebhook by remember { mutableStateOf(false) }
+            val scope = rememberCoroutineScope()
+
+            OutlinedButton(
+                onClick = {
+                    scope.launch {
+                        testingWebhook = true
+                        val result = viewModel.testWebhook(
+                            BankGlobalConfig(
+                                endpointUrl = endpointUrl.trim(),
+                                apiKey = apiKey.trim(),
+                                agentId = agentId.trim(),
+                                enabledBanks = enabledBanks,
+                                enabledLineBanks = enabledLineBanks,
+                                enabledSmsBanks = enabledSmsBanks,
+                                forwardLineBanks = forwardLineBanks,
+                                forwardSmsBanks = forwardSmsBanks
+                            )
+                        )
+                        testingWebhook = false
+                        saveError = if (result.isSuccess) null else result.exceptionOrNull()?.message ?: "Unknown error"
+                        showSaveDialog = true
+                    }
+                },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !testingWebhook && endpointUrl.isNotBlank()
+            ) {
+                Text(if (testingWebhook) "Testing..." else "Test Bank Endpoint")
+            }
+
             Button(
                 onClick = {
                     try {
