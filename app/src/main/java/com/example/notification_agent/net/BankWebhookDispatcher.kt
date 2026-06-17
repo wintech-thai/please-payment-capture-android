@@ -12,8 +12,6 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.IOException
-import java.math.BigDecimal
-import java.math.RoundingMode
 
 /**
  * Primary forwarding mechanism: posts a payment notification to the consolidated
@@ -26,8 +24,6 @@ class BankWebhookDispatcher(
 
     suspend fun sendWebhookForBank(
         bankName: String,
-        amount: Double,
-        fromAccount: String?,
         rawDataJson: String? = null
     ): Result<Int> {
         val bank = SupportedBank.fromCode(bankName) ?: run {
@@ -63,8 +59,6 @@ class BankWebhookDispatcher(
                 endpointUrl = globalConfig.endpointUrl,
                 apiKey = globalConfig.apiKey,
                 bankName = bank.code,
-                amount = amount,
-                fromAccount = fromAccount,
                 rawDataJson = rawDataJson
             )
         }
@@ -103,17 +97,10 @@ class BankWebhookDispatcher(
         endpointUrl: String,
         apiKey: String,
         bankName: String,
-        amount: Double,
-        fromAccount: String?,
         rawDataJson: String? = null
     ): Result<Int> = withContext(Dispatchers.IO) {
         runCatching {
-            val body = buildJson(
-                bankName = bankName,
-                amount = amount,
-                fromAccount = fromAccount,
-                rawDataJson = rawDataJson
-            ).toRequestBody(JSON)
+            val body = buildJson(rawDataJson).toRequestBody(JSON)
             val builder = Request.Builder()
                 .url(endpointUrl)
                 .post(body)
@@ -148,51 +135,18 @@ class BankWebhookDispatcher(
     }
 
     private fun buildJson(
-        bankName: String,
-        amount: Double,
-        fromAccount: String?,
         rawDataJson: String?
-    ): String = Companion.buildJson(
-        bankName = bankName,
-        amount = amount,
-        fromAccount = fromAccount,
-        rawDataJson = rawDataJson
-    )
+    ): String = Companion.buildJson(rawDataJson)
 
     companion object {
         private const val TAG = "BankWebhookDispatcher"
         private const val DEFAULT_APPLICATION_TYPE = "backend"
         private val JSON = "application/json; charset=utf-8".toMediaType()
 
-        internal fun toMoneyValue(amount: Double): BigDecimal =
-            BigDecimal.valueOf(amount).setScale(2, RoundingMode.HALF_UP)
-
         internal fun buildJson(
-            bankName: String,
-            amount: Double,
-            fromAccount: String?,
             rawDataJson: String? = null
         ): String {
-            val fields = linkedMapOf<String, String>()
-            fields["PaymentAmount"] = toMoneyValue(amount).toPlainString()
-            fields["RemainAmount"] = toMoneyValue(0.0).toPlainString()
-            fields["TxType"] = jsonString("PayIn")
-
-            val sourceBankCode = SupportedBank.fromCode(bankName)?.code.orEmpty()
-            if (sourceBankCode.isNotBlank()) {
-                fields["SourceBankCode"] = jsonString(sourceBankCode)
-            }
-            if (!fromAccount.isNullOrBlank()) {
-                fields["SourceBankAccountNo"] = jsonString(fromAccount)
-            }
-            if (!rawDataJson.isNullOrBlank()) {
-                fields["rawDataObj"] = rawDataJson
-            }
-            return fields.entries.joinToString(
-                prefix = "{",
-                postfix = "}",
-                separator = ","
-            ) { (key, value) -> "\"$key\":$value" }
+            return rawDataJson ?: "{}"
         }
 
         internal fun buildRawDataJson(message: com.example.notification_agent.data.MessageEntity): String {

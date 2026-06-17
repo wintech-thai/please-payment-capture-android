@@ -40,6 +40,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -114,6 +115,10 @@ private fun BankSettingsScreen(
     var apiKey by remember(globalConfig) { mutableStateOf(globalConfig.apiKey) }
     var agentId by remember(globalConfig) { mutableStateOf(globalConfig.agentId) }
     var enabledBanks by remember(globalConfig) { mutableStateOf(globalConfig.enabledBanks) }
+    var enabledLineBanks by remember(globalConfig) { mutableStateOf(globalConfig.enabledLineBanks) }
+    var enabledSmsBanks by remember(globalConfig) { mutableStateOf(globalConfig.enabledSmsBanks) }
+    var forwardLineBanks by remember(globalConfig) { mutableStateOf(globalConfig.forwardLineBanks) }
+    var forwardSmsBanks by remember(globalConfig) { mutableStateOf(globalConfig.forwardSmsBanks) }
 
     var showSaveDialog by remember { mutableStateOf(false) }
     var saveError by remember { mutableStateOf<String?>(null) }
@@ -207,21 +212,60 @@ private fun BankSettingsScreen(
             )
 
             SupportedBank.entries.forEach { bank ->
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(text = bank.code, modifier = Modifier.weight(1f))
-                    Switch(
-                        checked = enabledBanks.contains(bank.code),
-                        onCheckedChange = { checked ->
-                            enabledBanks = if (checked) {
-                                enabledBanks + bank.code
-                            } else {
-                                enabledBanks - bank.code
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(text = bank.code, modifier = Modifier.weight(1f), fontWeight = FontWeight.SemiBold)
+                        Switch(
+                            checked = enabledBanks.contains(bank.code),
+                            onCheckedChange = { checked ->
+                                enabledBanks = if (checked) {
+                                    enabledBanks + bank.code
+                                } else {
+                                    enabledBanks - bank.code
+                                }
+                            }
+                        )
+                    }
+
+                    if (enabledBanks.contains(bank.code)) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(start = 24.dp, bottom = 8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            if (bank.supportsLine) {
+                                ChannelOption(
+                                    label = "LINE",
+                                    isEnabled = enabledLineBanks.contains(bank.code),
+                                    onEnabledChange = { checked ->
+                                        enabledLineBanks = if (checked) enabledLineBanks + bank.code else enabledLineBanks - bank.code
+                                    },
+                                    isForwarded = forwardLineBanks.contains(bank.code),
+                                    onForwardedChange = { checked ->
+                                        forwardLineBanks = if (checked) forwardLineBanks + bank.code else forwardLineBanks - bank.code
+                                    }
+                                )
+                            }
+                            if (bank.supportsSms) {
+                                ChannelOption(
+                                    label = "SMS",
+                                    isEnabled = enabledSmsBanks.contains(bank.code),
+                                    onEnabledChange = { checked ->
+                                        enabledSmsBanks = if (checked) enabledSmsBanks + bank.code else enabledSmsBanks - bank.code
+                                    },
+                                    isForwarded = forwardSmsBanks.contains(bank.code),
+                                    onForwardedChange = { checked ->
+                                        forwardSmsBanks = if (checked) forwardSmsBanks + bank.code else forwardSmsBanks - bank.code
+                                    }
+                                )
                             }
                         }
-                    )
+                    }
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp), thickness = 0.5.dp)
                 }
             }
 
@@ -235,7 +279,11 @@ private fun BankSettingsScreen(
                                 endpointUrl = endpointUrl.trim(),
                                 apiKey = apiKey.trim(),
                                 agentId = agentId.trim(),
-                                enabledBanks = enabledBanks
+                                enabledBanks = enabledBanks,
+                                enabledLineBanks = enabledLineBanks,
+                                enabledSmsBanks = enabledSmsBanks,
+                                forwardLineBanks = forwardLineBanks,
+                                forwardSmsBanks = forwardSmsBanks
                             )
                         )
                         saveError = null
@@ -275,6 +323,63 @@ private fun BankSettingsScreen(
             }
         )
     }
+}
+
+@Composable
+private fun ChannelOption(
+    label: String,
+    isEnabled: Boolean,
+    onEnabledChange: (Boolean) -> Unit,
+    isForwarded: Boolean,
+    onForwardedChange: (Boolean) -> Unit
+) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(text = label, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+            Switch(
+                checked = isEnabled,
+                onCheckedChange = onEnabledChange,
+                modifier = Modifier.padding(end = 8.dp)
+            )
+        }
+        if (isEnabled) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 16.dp)
+            ) {
+                Text(
+                    text = "Forward to Webhook",
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.secondary
+                )
+                Switch(
+                    checked = isForwarded,
+                    onCheckedChange = onForwardedChange,
+                    scale = 0.8f
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun Switch(
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    modifier: Modifier = Modifier,
+    scale: Float = 1f
+) {
+    androidx.compose.material3.Switch(
+        checked = checked,
+        onCheckedChange = onCheckedChange,
+        modifier = modifier.then(Modifier.scale(scale))
+    )
 }
 
 @Composable

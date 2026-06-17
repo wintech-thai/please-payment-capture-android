@@ -2,11 +2,16 @@ package com.example.notification_agent.bank
 
 enum class SupportedBank(
     val code: String,
-    private val lineTitleKeywords: Set<String>
+    private val lineTitleKeywords: Set<String>,
+    val supportsLine: Boolean = true,
+    val supportsSms: Boolean = false,
+    val smsSender: String? = null
 ) {
     SCB(
         code = "SCB",
-        lineTitleKeywords = setOf("SCB Connect", "SCB")
+        lineTitleKeywords = setOf("SCB Connect", "SCB"),
+        supportsSms = true,
+        smsSender = "+6627777777"
     ),
     KTB(
         code = "KTB",

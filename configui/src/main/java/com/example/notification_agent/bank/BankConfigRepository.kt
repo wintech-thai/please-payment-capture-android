@@ -31,6 +31,10 @@ class BankConfigRepository(private val context: Context) {
         val GlobalApiKey = stringPreferencesKey("bank_global_apikey")
         val GlobalAgentId = stringPreferencesKey("bank_global_agentid")
         val GlobalEnabledBanks = stringSetPreferencesKey("bank_global_enabled_banks")
+        val GlobalEnabledLineBanks = stringSetPreferencesKey("bank_global_enabled_line_banks")
+        val GlobalEnabledSmsBanks = stringSetPreferencesKey("bank_global_enabled_sms_banks")
+        val GlobalForwardLineBanks = stringSetPreferencesKey("bank_global_forward_line_banks")
+        val GlobalForwardSmsBanks = stringSetPreferencesKey("bank_global_forward_sms_banks")
         val Pin = stringPreferencesKey("launch_pin")
         val PinEnabled = booleanPreferencesKey("launch_pin_enabled")
     }
@@ -46,7 +50,11 @@ class BankConfigRepository(private val context: Context) {
             endpointUrl = prefs[Keys.GlobalUrl] ?: "",
             apiKey = prefs[Keys.GlobalApiKey] ?: "",
             agentId = prefs[Keys.GlobalAgentId] ?: "",
-            enabledBanks = prefs[Keys.GlobalEnabledBanks] ?: emptySet()
+            enabledBanks = prefs[Keys.GlobalEnabledBanks] ?: emptySet(),
+            enabledLineBanks = prefs[Keys.GlobalEnabledLineBanks] ?: emptySet(),
+            enabledSmsBanks = prefs[Keys.GlobalEnabledSmsBanks] ?: emptySet(),
+            forwardLineBanks = prefs[Keys.GlobalForwardLineBanks] ?: emptySet(),
+            forwardSmsBanks = prefs[Keys.GlobalForwardSmsBanks] ?: emptySet()
         )
     }
 
@@ -65,6 +73,10 @@ class BankConfigRepository(private val context: Context) {
             prefs[Keys.GlobalApiKey] = config.apiKey
             prefs[Keys.GlobalAgentId] = config.agentId
             prefs[Keys.GlobalEnabledBanks] = config.enabledBanks
+            prefs[Keys.GlobalEnabledLineBanks] = config.enabledLineBanks
+            prefs[Keys.GlobalEnabledSmsBanks] = config.enabledSmsBanks
+            prefs[Keys.GlobalForwardLineBanks] = config.forwardLineBanks
+            prefs[Keys.GlobalForwardSmsBanks] = config.forwardSmsBanks
         }
     }
 

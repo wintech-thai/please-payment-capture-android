@@ -29,5 +29,9 @@ data class BankGlobalConfig(
     val endpointUrl: String = "",
     val apiKey: String = "",
     val agentId: String = "",
-    val enabledBanks: Set<String> = emptySet()
+    val enabledBanks: Set<String> = emptySet(),
+    val enabledLineBanks: Set<String> = emptySet(),
+    val enabledSmsBanks: Set<String> = emptySet(),
+    val forwardLineBanks: Set<String> = emptySet(),
+    val forwardSmsBanks: Set<String> = emptySet()
 )
