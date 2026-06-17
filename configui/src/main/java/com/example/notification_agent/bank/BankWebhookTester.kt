@@ -6,6 +6,7 @@ package com.example.notification_agent.bank
  */
 interface BankWebhookTester {
     suspend fun testWebhook(config: BankGlobalConfig): Result<Int>
+    suspend fun testHeartbeat(config: BankGlobalConfig): Result<Int>
 
     companion object {
         @Volatile

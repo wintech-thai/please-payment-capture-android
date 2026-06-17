@@ -33,6 +33,23 @@ class BankWebhookDispatcher(
         )
     }
 
+    override suspend fun testHeartbeat(config: com.example.notification_agent.bank.BankGlobalConfig): Result<Int> {
+        val probeUrl = if (config.endpointUrl.isNotBlank()) {
+            config.endpointUrl.replace("NotifyLineMessage", "NotifyHeartbeat")
+        } else ""
+        
+        if (probeUrl.isBlank()) return Result.failure(IllegalStateException("No endpoint URL"))
+        
+        val dummyRawData = """{"timestamp":${System.currentTimeMillis()},"version":"${com.example.notification_agent.BuildConfig.VERSION_NAME}","test":true}"""
+        Log.d(TAG, "Sending test heartbeat to $probeUrl")
+        return sendWebhook(
+            endpointUrl = probeUrl,
+            apiKey = config.apiKey,
+            bankName = "HEARTBEAT",
+            rawDataJson = dummyRawData
+        )
+    }
+
     suspend fun sendWebhookForBank(
         bankName: String,
         rawDataJson: String? = null
@@ -119,7 +136,7 @@ class BankWebhookDispatcher(
                 .url(endpointUrl)
                 .post(body)
                 .header("Accept", "application/json")
-                .header("Onix-Application-Type", DEFAULT_APPLICATION_TYPE)
+                .header("Onix-Application-Type", "backend")
             if (apiKey.isNotBlank()) {
                 builder.header("Authorization", Credentials.basic("api", apiKey))
             }
@@ -155,7 +172,6 @@ class BankWebhookDispatcher(
 
     companion object {
         private const val TAG = "BankWebhookDispatcher"
-        private const val DEFAULT_APPLICATION_TYPE = "backend"
         private val JSON = "application/json; charset=utf-8".toMediaType()
 
         internal fun buildJson(

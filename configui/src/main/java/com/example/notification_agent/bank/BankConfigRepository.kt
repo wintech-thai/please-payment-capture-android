@@ -46,14 +46,28 @@ class BankConfigRepository(private val context: Context) {
 
     /** Live global configuration. */
     val globalConfig: Flow<BankGlobalConfig> = context.bankConfigStore.data.map { prefs ->
+        val enabledBanks = prefs[Keys.GlobalEnabledBanks] ?: emptySet()
+
+        // Backward compatibility: if granular keys are missing, default to main enabledBanks set
+        val enabledLineBanks = if (prefs.contains(Keys.GlobalEnabledLineBanks)) {
+            prefs[Keys.GlobalEnabledLineBanks] ?: emptySet()
+        } else {
+            enabledBanks
+        }
+        val forwardLineBanks = if (prefs.contains(Keys.GlobalForwardLineBanks)) {
+            prefs[Keys.GlobalForwardLineBanks] ?: emptySet()
+        } else {
+            enabledBanks
+        }
+
         BankGlobalConfig(
             endpointUrl = prefs[Keys.GlobalUrl] ?: "",
             apiKey = prefs[Keys.GlobalApiKey] ?: "",
             agentId = prefs[Keys.GlobalAgentId] ?: "",
-            enabledBanks = prefs[Keys.GlobalEnabledBanks] ?: emptySet(),
-            enabledLineBanks = prefs[Keys.GlobalEnabledLineBanks] ?: emptySet(),
+            enabledBanks = enabledBanks,
+            enabledLineBanks = enabledLineBanks,
             enabledSmsBanks = prefs[Keys.GlobalEnabledSmsBanks] ?: emptySet(),
-            forwardLineBanks = prefs[Keys.GlobalForwardLineBanks] ?: emptySet(),
+            forwardLineBanks = forwardLineBanks,
             forwardSmsBanks = prefs[Keys.GlobalForwardSmsBanks] ?: emptySet()
         )
     }

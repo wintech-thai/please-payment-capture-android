@@ -17,6 +17,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -187,6 +188,16 @@ private fun BankSettingsScreen(
                 label = { Text(stringResource(R.string.bank_global_apikey)) },
                 singleLine = true,
                 visualTransformation = PasswordVisualTransformation(),
+                trailingIcon = {
+                    if (apiKey.isNotEmpty()) {
+                        IconButton(onClick = { apiKey = "" }) {
+                            Icon(
+                                imageVector = Icons.Default.Clear,
+                                contentDescription = stringResource(R.string.bank_apikey_clear_field)
+                            )
+                        }
+                    }
+                },
                 modifier = Modifier.fillMaxWidth()
             )
 
@@ -273,6 +284,33 @@ private fun BankSettingsScreen(
 
             var testingWebhook by remember { mutableStateOf(false) }
             val scope = rememberCoroutineScope()
+
+            OutlinedButton(
+                onClick = {
+                    scope.launch {
+                        testingWebhook = true
+                        val result = viewModel.testHeartbeat(
+                            BankGlobalConfig(
+                                endpointUrl = endpointUrl.trim(),
+                                apiKey = apiKey.trim(),
+                                agentId = agentId.trim(),
+                                enabledBanks = enabledBanks,
+                                enabledLineBanks = enabledLineBanks,
+                                enabledSmsBanks = enabledSmsBanks,
+                                forwardLineBanks = forwardLineBanks,
+                                forwardSmsBanks = forwardSmsBanks
+                            )
+                        )
+                        testingWebhook = false
+                        saveError = if (result.isSuccess) null else result.exceptionOrNull()?.message ?: "Unknown error"
+                        showSaveDialog = true
+                    }
+                },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !testingWebhook && endpointUrl.isNotBlank()
+            ) {
+                Text(if (testingWebhook) "Testing..." else "Test Heartbeat Endpoint")
+            }
 
             OutlinedButton(
                 onClick = {

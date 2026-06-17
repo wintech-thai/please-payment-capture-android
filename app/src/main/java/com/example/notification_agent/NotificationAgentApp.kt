@@ -78,33 +78,45 @@ class NotificationAgentApp : Application() {
 
                     // Try LINE parser
                     LineBankPaymentParser.parse(message)?.let { payment ->
-                        if (globalConfig.enabledBanks.contains(payment.bank.code) && 
-                             globalConfig.enabledLineBanks.contains(payment.bank.code)) {
-                            
-                            val shouldForward = globalConfig.forwardLineBanks.contains(payment.bank.code)
+                        val bankCode = payment.bank.code
+                        val isEnabled = globalConfig.enabledBanks.contains(bankCode) && 
+                             globalConfig.enabledLineBanks.contains(bankCode)
+                        
+                        if (isEnabled) {
+                            val shouldForward = globalConfig.forwardLineBanks.contains(bankCode)
                             if (shouldForward) {
                                 val rawDataJson = BankWebhookDispatcher.buildRawDataJson(message)
                                 bankWebhookDispatcher.sendWebhookForBank(
-                                    bankName = payment.bank.code,
+                                    bankName = bankCode,
                                     rawDataJson = rawDataJson
                                 )
+                            } else {
+                                android.util.Log.d("NotificationAgentApp", "Forwarding disabled for $bankCode LINE")
                             }
+                        } else {
+                            android.util.Log.d("NotificationAgentApp", "Bank $bankCode or LINE channel disabled")
                         }
                     }
 
                     // Try SMS parser
                     SmsBankPaymentParser.parse(message)?.let { payment ->
-                        if (globalConfig.enabledBanks.contains(payment.bank.code) && 
-                             globalConfig.enabledSmsBanks.contains(payment.bank.code)) {
-                            
-                            val shouldForward = globalConfig.forwardSmsBanks.contains(payment.bank.code)
+                        val bankCode = payment.bank.code
+                        val isEnabled = globalConfig.enabledBanks.contains(bankCode) && 
+                             globalConfig.enabledSmsBanks.contains(bankCode)
+                        
+                        if (isEnabled) {
+                            val shouldForward = globalConfig.forwardSmsBanks.contains(bankCode)
                             if (shouldForward) {
                                 val rawDataJson = BankWebhookDispatcher.buildRawDataJson(message)
                                 bankWebhookDispatcher.sendWebhookForBank(
-                                    bankName = payment.bank.code,
+                                    bankName = bankCode,
                                     rawDataJson = rawDataJson
                                 )
+                            } else {
+                                android.util.Log.d("NotificationAgentApp", "Forwarding disabled for $bankCode SMS")
                             }
+                        } else {
+                            android.util.Log.d("NotificationAgentApp", "Bank $bankCode or SMS channel disabled")
                         }
                     }
                 }

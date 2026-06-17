@@ -56,4 +56,11 @@ class BankConfigViewModel(app: Application) : AndroidViewModel(app) {
         )
         return tester.testWebhook(config)
     }
+
+    suspend fun testHeartbeat(config: BankGlobalConfig): Result<Int> {
+        val tester = BankWebhookTester.instance ?: return Result.failure(
+            IllegalStateException("Webhook tester not initialized")
+        )
+        return tester.testHeartbeat(config)
+    }
 }
