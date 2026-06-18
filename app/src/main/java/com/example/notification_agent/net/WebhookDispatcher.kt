@@ -137,7 +137,7 @@ class WebhookDispatcher(
         if (!isTest && !current.webhookEnabled) return -1
         val url = current.webhookUrl
         if (url.isBlank()) return -1
-        val debugInfo = NotificationDebugRegistry.consume(message)
+        val debugInfo = NotificationDebugRegistry.peek(message)
         val body = WebhookPayloadBuilder.buildPayload(
             message = message,
             deviceId = deviceId,

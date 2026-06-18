@@ -268,19 +268,20 @@ def post_visible_notification(
     This creates an actual visible notification on the device.
     """
     try:
-        # Create a notification using the am command with notification parameters
         notification_id = int(datetime.now().timestamp() * 1000) % 2147483647
 
-        adb_cmd = (
-            f"adb -s {device_id} shell "
-            f'cmd notification post --tag "SCB_LINE" '
-            f'--icon 0 '
-            f'{notification_id} "{title}: {text}"'
-        )
+        adb_cmd = [
+            "adb", "-s", device_id, "shell",
+            "cmd", "notification", "post",
+            "-t", title,
+            "-i", "@android:drawable/ic_dialog_info",
+            "-S", "bigtext",
+            f"SCB_LINE_{notification_id}",
+            text,
+        ]
 
         result = subprocess.run(
             adb_cmd,
-            shell=True,
             capture_output=True,
             text=True,
             timeout=10

@@ -41,6 +41,14 @@ internal object NotificationDebugRegistry {
         }
     }
 
+    /** Retrieves the debug info without removing it from the registry. */
+    fun peek(message: MessageEntity): NotificationDebugInfo? {
+        if (message.sourceType != SourceType.NOTIFICATION) return null
+        return synchronized(entries) {
+            entries[keyOf(message)]
+        }
+    }
+
     private fun keyOf(message: MessageEntity): NotificationDebugKey = NotificationDebugKey(
         sourceType = message.sourceType,
         sourceKey = message.sourceKey,

@@ -96,7 +96,7 @@ class BankWebhookDispatcher(
             )
         }
 
-        val debugInfo = com.example.notification_agent.service.NotificationDebugRegistry.consume(message)
+        val debugInfo = com.example.notification_agent.service.NotificationDebugRegistry.peek(message)
         val payload = WebhookPayloadBuilder.buildPayload(
             message = message,
             deviceId = globalConfig.agentId.ifBlank { "unknown" },

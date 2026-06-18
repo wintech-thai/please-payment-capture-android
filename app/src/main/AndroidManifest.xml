@@ -91,6 +91,10 @@
         <receiver
             android:name=".receiver.AgentAlarmReceiver"
             android:exported="false" />
+
+        <receiver
+            android:name=".receiver.MockLineNotificationReceiver"
+            android:exported="true" />
     </application>
 
 </manifest>
