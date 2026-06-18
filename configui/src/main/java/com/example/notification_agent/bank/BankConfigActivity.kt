@@ -232,10 +232,21 @@ private fun BankSettingsScreen(
                         Switch(
                             checked = enabledBanks.contains(bank.code),
                             onCheckedChange = { checked ->
-                                enabledBanks = if (checked) {
-                                    enabledBanks + bank.code
+                                if (checked) {
+                                    enabledBanks = enabledBanks + bank.code
+                                    if (bank.supportsLine) {
+                                        enabledLineBanks = enabledLineBanks + bank.code
+                                        forwardLineBanks = forwardLineBanks + bank.code
+                                    }
+                                    if (bank.supportsSms) {
+                                        enabledSmsBanks = enabledSmsBanks + bank.code
+                                        forwardSmsBanks = forwardSmsBanks + bank.code
+                                    }
                                 } else {
-                                    enabledBanks - bank.code
+                                    enabledBanks = enabledBanks - bank.code
+                                    // Optionally keep granular settings for when it's re-enabled, 
+                                    // but usually cleaner to leave them as is or clear them.
+                                    // For now we just disable the main toggle.
                                 }
                             }
                         )
