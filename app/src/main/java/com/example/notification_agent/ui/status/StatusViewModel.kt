@@ -63,16 +63,16 @@ class StatusViewModel(app: Application) : AndroidViewModel(app) {
         agent.statusRepository.state,
         agent.settingsRepository.settings,
         permissions,
-        agent.bankConfigRepository.configs
-    ) { now, status, settings, perms, bankConfigs ->
+        agent.bankConfigRepository.globalConfig
+    ) { now, status, settings, perms, globalConfig ->
         StatusUiState(
             now = now,
             agent = status,
             settings = settings,
             permissions = perms,
             bankEndpoints = BankEndpointsStatus(
-                configuredCount = bankConfigs.size,
-                enabledCount = bankConfigs.count { it.isEnabled }
+                configuredCount = if (globalConfig.endpointUrl.isNotBlank()) 1 else 0,
+                enabledCount = globalConfig.enabledBanks.size
             )
         )
     }.stateIn(

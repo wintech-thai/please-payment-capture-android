@@ -175,7 +175,7 @@ internal data class NotificationSelection(
     val candidates: List<NotificationCandidateSnapshot>
 )
 
-internal data class NotificationCandidateSnapshot(
+data class NotificationCandidateSnapshot(
     val source: String,
     val value: String,
     val length: Int

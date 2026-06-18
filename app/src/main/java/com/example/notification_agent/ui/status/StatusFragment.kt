@@ -5,6 +5,7 @@ import android.text.format.DateUtils
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.appcompat.app.AlertDialog
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
@@ -51,6 +52,42 @@ class StatusFragment : Fragment() {
         }
         binding.grantBattery.setOnClickListener {
             PermissionHelper.requestIgnoreBatteryOptimizations(requireContext())
+        }
+
+        binding.webhookCard.setOnClickListener {
+            showMonitoringPopup(
+                title = getString(R.string.status_webhook),
+                sent = viewModel.state.value.agent.webhookSentCount,
+                failed = viewModel.state.value.agent.webhookFailedCount,
+                lastAt = viewModel.state.value.agent.lastWebhookAt,
+                lastOk = viewModel.state.value.agent.lastWebhookOk,
+                lastError = viewModel.state.value.agent.lastWebhookError,
+                now = viewModel.state.value.now
+            )
+        }
+        binding.bankForwardCard.setOnClickListener {
+            showMonitoringPopup(
+                title = getString(R.string.status_bank_forward),
+                sent = viewModel.state.value.agent.bankForwardSentCount,
+                failed = viewModel.state.value.agent.bankForwardFailedCount,
+                lastAt = viewModel.state.value.agent.lastBankForwardAt,
+                lastOk = viewModel.state.value.agent.lastBankForwardOk,
+                lastError = viewModel.state.value.agent.lastBankForwardError,
+                bankName = viewModel.state.value.agent.lastBankForwardBankName,
+                now = viewModel.state.value.now
+            )
+        }
+        binding.probeCard.setOnClickListener {
+            showMonitoringPopup(
+                title = getString(R.string.status_probe),
+                sent = -1, // Not tracked as a count in AgentStatus but we can show last result
+                failed = -1,
+                lastAt = viewModel.state.value.agent.lastProbeAt,
+                lastOk = viewModel.state.value.agent.lastProbeOk,
+                lastError = null,
+                latency = viewModel.state.value.agent.lastProbeLatencyMs,
+                now = viewModel.state.value.now
+            )
         }
 
         viewLifecycleOwner.lifecycleScope.launch {
@@ -163,6 +200,46 @@ class StatusFragment : Fragment() {
         val m = (totalSec % 3600) / 60
         val s = totalSec % 60
         return if (h > 0) "%dh %02dm %02ds".format(h, m, s) else "%dm %02ds".format(m, s)
+    }
+
+    private fun showMonitoringPopup(
+        title: String,
+        sent: Long,
+        failed: Long,
+        lastAt: Long,
+        lastOk: Boolean?,
+        lastError: String?,
+        bankName: String? = null,
+        latency: Long? = null,
+        now: Long
+    ) {
+        val sb = StringBuilder()
+        if (sent >= 0) sb.append("Total Sent: $sent\n")
+        if (failed >= 0) sb.append("Total Failed: $failed\n")
+        
+        if (lastAt > 0) {
+            sb.append("\nLast Activity: ${formatRelative(lastAt, now)}\n")
+            val status = when (lastOk) {
+                true -> "Success"
+                false -> "Failed"
+                else -> "Unknown"
+            }
+            sb.append("Last Status: $status\n")
+            if (bankName != null) sb.append("Last Bank: $bankName\n")
+            if (latency != null && latency > 0) sb.append("Latency: ${latency}ms\n")
+            if (!lastError.isNullOrBlank()) {
+                sb.append("\nError Detail:\n$lastError")
+            }
+        } else {
+            sb.append("\nNo activity recorded yet.")
+        }
+
+        AlertDialog.Builder(requireContext())
+            .setTitle(title)
+            .setMessage(sb.toString())
+            .setPositiveButton(android.R.string.ok, null)
+            .create()
+            .show()
     }
 
     override fun onDestroyView() {

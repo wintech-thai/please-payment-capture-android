@@ -82,13 +82,15 @@ class NotificationAgentApp : Application() {
                         val isEnabled = globalConfig.enabledBanks.contains(bankCode) && 
                              globalConfig.enabledLineBanks.contains(bankCode)
                         
+                        android.util.Log.d("NotificationAgentApp", "LINE payment for $bankCode: isEnabled=$isEnabled")
+                        
                         if (isEnabled) {
                             val shouldForward = globalConfig.forwardLineBanks.contains(bankCode)
                             if (shouldForward) {
-                                val rawDataJson = BankWebhookDispatcher.buildRawDataJson(message)
                                 bankWebhookDispatcher.sendWebhookForBank(
                                     bankName = bankCode,
-                                    rawDataJson = rawDataJson
+                                    message = message,
+                                    linePayment = payment
                                 )
                             } else {
                                 android.util.Log.d("NotificationAgentApp", "Forwarding disabled for $bankCode LINE")
@@ -104,13 +106,15 @@ class NotificationAgentApp : Application() {
                         val isEnabled = globalConfig.enabledBanks.contains(bankCode) && 
                              globalConfig.enabledSmsBanks.contains(bankCode)
                         
+                        android.util.Log.d("NotificationAgentApp", "SMS payment for $bankCode: isEnabled=$isEnabled")
+                        
                         if (isEnabled) {
                             val shouldForward = globalConfig.forwardSmsBanks.contains(bankCode)
                             if (shouldForward) {
-                                val rawDataJson = BankWebhookDispatcher.buildRawDataJson(message)
                                 bankWebhookDispatcher.sendWebhookForBank(
                                     bankName = bankCode,
-                                    rawDataJson = rawDataJson
+                                    message = message,
+                                    smsPayment = payment
                                 )
                             } else {
                                 android.util.Log.d("NotificationAgentApp", "Forwarding disabled for $bankCode SMS")

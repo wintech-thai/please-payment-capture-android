@@ -33,21 +33,38 @@ object LineBankPaymentParser {
 
         val normalizedTitle = title?.trim().orEmpty()
         val normalizedText = text?.trim().orEmpty()
-        if (normalizedText.isBlank() || !normalizedText.contains(INCOMING_KEYWORD)) return null
+        
+        if (normalizedText.isBlank()) return null
+        
+        if (!normalizedText.contains(INCOMING_KEYWORD)) {
+            android.util.Log.v("LineBankParser", "Skipping LINE: no keyword '$INCOMING_KEYWORD' in '$normalizedText'")
+            return null
+        }
 
-        val bank = SupportedBank.fromLineNotification(normalizedTitle) ?: return null
+        val bank = SupportedBank.fromLineNotification(normalizedTitle)
+        if (bank == null) {
+            android.util.Log.w("LineBankParser", "Skipping LINE: unsupported bank in title '$normalizedTitle'")
+            return null
+        }
+        
         val amount = amountRegex.find(normalizedText)
             ?.groupValues
             ?.getOrNull(1)
             ?.replace(",", "")
             ?.toDoubleOrNull()
-            ?: return null
+            
+        if (amount == null) {
+            android.util.Log.w("LineBankParser", "Skipping LINE: could not parse amount in '$normalizedText'")
+            return null
+        }
+        
         val account = accountRegex.find(normalizedText)
             ?.groupValues
             ?.getOrNull(1)
             ?.trim()
             ?.takeIf { it.isNotEmpty() }
 
+        android.util.Log.i("LineBankParser", "Successfully parsed LINE payment: bank=${bank.code}, amount=$amount")
         return LineBankPayment(
             bank = bank,
             amount = amount,

@@ -53,7 +53,7 @@ class LivenessProbe(
             return@withContext result
         }
 
-        val apiKey = current.webhookBearerToken.ifBlank { global.apiKey }
+        val apiKey = global.apiKey
 
         val body = buildJson().toRequestBody(JSON)
         val client = AgentHttpClient.client.newBuilder()

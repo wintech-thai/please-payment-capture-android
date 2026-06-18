@@ -3,7 +3,7 @@ package com.example.notification_agent.service
 import com.example.notification_agent.data.MessageEntity
 import com.example.notification_agent.data.SourceType
 
-internal data class NotificationDebugInfo(
+data class NotificationDebugInfo(
     val selectedTitleSource: String?,
     val selectedTextSource: String?,
     val titleCandidates: List<NotificationCandidateSnapshot>,

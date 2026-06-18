@@ -138,11 +138,9 @@ class WebhookDispatcher(
         val url = current.webhookUrl
         if (url.isBlank()) return -1
         val debugInfo = NotificationDebugRegistry.consume(message)
-        val body = buildJson(
-            m = message,
+        val body = WebhookPayloadBuilder.buildPayload(
+            message = message,
             deviceId = deviceId,
-            deviceLabel = "${Build.MANUFACTURER} ${Build.MODEL}",
-            agentVersion = BuildConfig.VERSION_NAME,
             notificationDebug = debugInfo
         ).toRequestBody(JSON)
         val request = Request.Builder()
@@ -197,86 +195,6 @@ class WebhookDispatcher(
         private const val TAG = "WebhookDispatcher"
         private const val QUEUE_CAPACITY = 256
         private val JSON = "application/json; charset=utf-8".toMediaType()
-
-        internal fun buildJson(
-            m: MessageEntity,
-            deviceId: String,
-            deviceLabel: String,
-            agentVersion: String,
-            notificationDebug: NotificationDebugInfo? = null
-        ): String {
-            val fields = linkedMapOf<String, String>()
-            fields["id"] = m.id.toString()
-            fields["sourceType"] = jsonString(m.sourceType.name)
-            fields["sourceKey"] = jsonString(m.sourceKey)
-            fields["sourceLabel"] = jsonString(m.sourceLabel.orEmpty())
-            fields["title"] = jsonString(m.title.orEmpty())
-            fields["text"] = jsonString(m.text.orEmpty())
-            fields["timestamp"] = m.timestamp.toString()
-            fields["deviceId"] = jsonString(deviceId)
-            fields["device"] = jsonString(deviceLabel)
-            fields["agentVersion"] = jsonString(agentVersion)
-
-            if (m.sourceType == com.example.notification_agent.data.SourceType.NOTIFICATION) {
-                fields["notificationAppPackage"] = jsonString(m.sourceKey)
-                if (!m.sourceLabel.isNullOrBlank()) {
-                    fields["notificationAppName"] = jsonString(m.sourceLabel)
-                }
-                notificationDebug?.let {
-                    fields["notificationDebug"] = notificationDebugToJson(it)
-                }
-            }
-
-            return fields.entries.joinToString(
-                prefix = "{",
-                postfix = "}",
-                separator = ","
-            ) { (key, value) -> "\"$key\":$value" }
-        }
-
-        private fun notificationDebugToJson(debug: NotificationDebugInfo): String {
-            val fields = linkedMapOf<String, String>()
-            fields["selectedTitleSource"] = nullableJsonString(debug.selectedTitleSource)
-            fields["selectedTextSource"] = nullableJsonString(debug.selectedTextSource)
-            fields["titleCandidates"] = candidatesToJson(debug.titleCandidates)
-            fields["textCandidates"] = candidatesToJson(debug.textCandidates)
-            return fields.entries.joinToString(
-                prefix = "{",
-                postfix = "}",
-                separator = ","
-            ) { (key, value) -> "\"$key\":$value" }
-        }
-
-        private fun candidatesToJson(candidates: List<NotificationCandidateSnapshot>): String =
-            candidates.joinToString(prefix = "[", postfix = "]", separator = ",") { candidate ->
-                linkedMapOf(
-                    "source" to jsonString(candidate.source),
-                    "value" to jsonString(candidate.value),
-                    "length" to candidate.length.toString()
-                ).entries.joinToString(prefix = "{", postfix = "}", separator = ",") { (key, value) ->
-                    "\"$key\":$value"
-                }
-            }
-
-        private fun nullableJsonString(value: String?): String = value?.let(::jsonString) ?: "null"
-
-        private fun jsonString(value: String): String =
-            buildString(value.length + 2) {
-                append('"')
-                value.forEach { ch ->
-                    when (ch) {
-                        '\\' -> append("\\\\")
-                        '"' -> append("\\\"")
-                        '\b' -> append("\\b")
-                        '\u000C' -> append("\\f")
-                        '\n' -> append("\\n")
-                        '\r' -> append("\\r")
-                        '\t' -> append("\\t")
-                        else -> append(ch)
-                    }
-                }
-                append('"')
-            }
     }
 }
 

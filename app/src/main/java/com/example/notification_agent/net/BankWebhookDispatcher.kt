@@ -23,13 +23,25 @@ class BankWebhookDispatcher(
 ) : com.example.notification_agent.bank.BankWebhookTester {
 
     override suspend fun testWebhook(config: com.example.notification_agent.bank.BankGlobalConfig): Result<Int> {
-        val dummyRawData = """{"test":true,"timestamp":${System.currentTimeMillis()},"message":"Test from NotificationAgent"}"""
+        val testMessage = com.example.notification_agent.data.MessageEntity(
+            id = 0,
+            sourceType = com.example.notification_agent.data.SourceType.NOTIFICATION,
+            sourceKey = "agent.test",
+            sourceLabel = "Agent test",
+            title = "Test from Notification Agent",
+            text = "Hello from Bank Config at ${System.currentTimeMillis()}",
+            timestamp = System.currentTimeMillis()
+        )
+        val payload = WebhookPayloadBuilder.buildPayload(
+            message = testMessage,
+            deviceId = config.agentId.ifBlank { "unknown" }
+        )
         Log.d(TAG, "Sending test webhook to ${config.endpointUrl}")
         return sendWebhook(
             endpointUrl = config.endpointUrl,
             apiKey = config.apiKey,
             bankName = "TEST",
-            rawDataJson = dummyRawData
+            rawDataJson = payload
         )
     }
 
@@ -52,7 +64,9 @@ class BankWebhookDispatcher(
 
     suspend fun sendWebhookForBank(
         bankName: String,
-        rawDataJson: String? = null
+        message: com.example.notification_agent.data.MessageEntity,
+        linePayment: LineBankPayment? = null,
+        smsPayment: SmsBankPayment? = null
     ): Result<Int> {
         val bank = SupportedBank.fromCode(bankName) ?: run {
             status.recordBankForward(bankName = bankName, ok = false, error = "unsupported bank")
@@ -82,12 +96,21 @@ class BankWebhookDispatcher(
             )
         }
 
+        val debugInfo = com.example.notification_agent.service.NotificationDebugRegistry.consume(message)
+        val payload = WebhookPayloadBuilder.buildPayload(
+            message = message,
+            deviceId = globalConfig.agentId.ifBlank { "unknown" },
+            notificationDebug = debugInfo,
+            linePayment = linePayment,
+            smsPayment = smsPayment
+        )
+
         return withRetry {
             sendWebhook(
                 endpointUrl = globalConfig.endpointUrl,
                 apiKey = globalConfig.apiKey,
                 bankName = bank.code,
-                rawDataJson = rawDataJson
+                rawDataJson = payload
             )
         }
     }
@@ -142,12 +165,17 @@ class BankWebhookDispatcher(
             }
 
             AgentHttpClient.client.newCall(builder.build()).execute().use { response ->
-                Log.d(TAG, "Webhook response: code=${response.code} success=${response.isSuccessful}")
+                val bodyStr = try {
+                    response.body?.string()?.take(500)
+                } catch (_: Exception) {
+                    null
+                }
+                Log.d(TAG, "Webhook response: code=${response.code} success=${response.isSuccessful} body=$bodyStr")
                 if (response.isSuccessful) {
                     status.recordBankForward(bankName = bankName, ok = true)
                     response.code
                 } else {
-                    val errorMsg = "HTTP ${response.code}"
+                    val errorMsg = "HTTP ${response.code}${if (!bodyStr.isNullOrBlank()) ": $bodyStr" else ""}"
                     status.recordBankForward(
                         bankName = bankName,
                         ok = false,
@@ -179,39 +207,5 @@ class BankWebhookDispatcher(
         ): String {
             return rawDataJson ?: "{}"
         }
-
-        internal fun buildRawDataJson(message: com.example.notification_agent.data.MessageEntity): String {
-            val fields = linkedMapOf<String, String>()
-            fields["id"] = message.id.toString()
-            fields["sourceType"] = jsonString(message.sourceType.name)
-            fields["sourceKey"] = jsonString(message.sourceKey)
-            fields["sourceLabel"] = jsonString(message.sourceLabel.orEmpty())
-            fields["title"] = jsonString(message.title.orEmpty())
-            fields["text"] = jsonString(message.text.orEmpty())
-            fields["timestamp"] = message.timestamp.toString()
-            return fields.entries.joinToString(
-                prefix = "{",
-                postfix = "}",
-                separator = ","
-            ) { (key, value) -> "\"$key\":$value" }
-        }
-
-        private fun jsonString(value: String): String =
-            buildString(value.length + 2) {
-                append('"')
-                value.forEach { ch ->
-                    when (ch) {
-                        '\\' -> append("\\\\")
-                        '"' -> append("\\\"")
-                        '\b' -> append("\\b")
-                        '\u000C' -> append("\\f")
-                        '\n' -> append("\\n")
-                        '\r' -> append("\\r")
-                        '\t' -> append("\\t")
-                        else -> append(ch)
-                    }
-                }
-                append('"')
-            }
     }
 }
