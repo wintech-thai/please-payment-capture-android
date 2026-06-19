@@ -21,8 +21,30 @@ class AgentWatchdogWorker(
     params: WorkerParameters
 ) : CoroutineWorker(appContext, params) {
 
+    companion object {
+        private const val UNIQUE_NAME = "agent_watchdog"
+        private const val RETENTION_DAYS = 7
+
+        fun enqueue(context: Context) {
+            val req = PeriodicWorkRequestBuilder<AgentWatchdogWorker>(15, TimeUnit.MINUTES)
+                .build()
+            WorkManager.getInstance(context).enqueueUniquePeriodicWork(
+                UNIQUE_NAME,
+                ExistingPeriodicWorkPolicy.KEEP,
+                req
+            )
+        }
+    }
+
     override suspend fun doWork(): Result {
         val app = NotificationAgentApp.from(applicationContext)
+        runCatching {
+            val pruned = app.repository.pruneOldMessages(retentionDays = RETENTION_DAYS)
+            android.util.Log.d("AgentWatchdogWorker", "Retention prune removed=$pruned")
+        }.onFailure {
+            android.util.Log.w("AgentWatchdogWorker", "Retention prune failed: ${it.message}")
+        }
+
         val settings = app.settingsRepository.settings.first()
         if (settings.keepAliveEnabled) {
             if (!app.statusRepository.state.value.serviceRunning) {
@@ -35,20 +57,6 @@ class AgentWatchdogWorker(
             }
         }
         return Result.success()
-    }
-
-    companion object {
-        private const val UNIQUE_NAME = "agent_watchdog"
-
-        fun enqueue(context: Context) {
-            val req = PeriodicWorkRequestBuilder<AgentWatchdogWorker>(15, TimeUnit.MINUTES)
-                .build()
-            WorkManager.getInstance(context).enqueueUniquePeriodicWork(
-                UNIQUE_NAME,
-                ExistingPeriodicWorkPolicy.KEEP,
-                req
-            )
-        }
     }
 }
 

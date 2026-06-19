@@ -31,6 +31,8 @@ class NotificationAgentApp : Application() {
     val database: AppDatabase by lazy {
         Room.databaseBuilder(this, AppDatabase::class.java, "notification_agent.db")
             .addMigrations(AppDatabase.MIGRATION_1_2)
+            .addMigrations(AppDatabase.MIGRATION_2_3)
+            .addMigrations(AppDatabase.MIGRATION_3_4)
             .build()
     }
 
@@ -152,6 +154,13 @@ class NotificationAgentApp : Application() {
         @Suppress("DEPRECATION")
         webhookDispatcher
         appScope.launch {
+            runCatching {
+                val pruned = repository.pruneOldMessages(retentionDays = 7)
+                android.util.Log.i("NotificationAgentApp", "Startup retention prune removed=$pruned")
+            }.onFailure {
+                android.util.Log.w("NotificationAgentApp", "Startup retention prune failed: ${it.message}")
+            }
+
             repository.ensureDefaultRule(
                 FilterRuleEntity(
                     sourceType = SourceType.NOTIFICATION,
