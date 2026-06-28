@@ -44,6 +44,12 @@ class AgentWatchdogWorker(
         }.onFailure {
             android.util.Log.w("AgentWatchdogWorker", "Retention prune failed: ${it.message}")
         }
+        runCatching {
+            val cutoff = System.currentTimeMillis() - RETENTION_DAYS * 24 * 3600 * 1000L
+            app.database.crashLogDao().deleteOlderThan(cutoff)
+        }.onFailure {
+            android.util.Log.w("AgentWatchdogWorker", "Crash log prune failed: ${it.message}")
+        }
 
         val settings = app.settingsRepository.settings.first()
         if (settings.keepAliveEnabled) {

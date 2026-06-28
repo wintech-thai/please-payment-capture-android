@@ -16,14 +16,15 @@ class SourceTypeConverter {
 }
 
 @Database(
-    entities = [MessageEntity::class, FilterRuleEntity::class],
-    version = 4,
+    entities = [MessageEntity::class, FilterRuleEntity::class, CrashLogEntity::class],
+    version = 5,
     exportSchema = false
 )
 @TypeConverters(SourceTypeConverter::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun messageDao(): MessageDao
     abstract fun filterRuleDao(): FilterRuleDao
+    abstract fun crashLogDao(): CrashLogDao
 
     companion object {
         val MIGRATION_1_2 = object : Migration(1, 2) {
@@ -62,6 +63,27 @@ abstract class AppDatabase : RoomDatabase() {
                 )
 
                 db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_messages_dedupeKey ON messages(dedupeKey)")
+            }
+        }
+
+        val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS crash_logs (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        level TEXT NOT NULL,
+                        tag TEXT NOT NULL,
+                        thread TEXT NOT NULL,
+                        exceptionClass TEXT NOT NULL,
+                        message TEXT,
+                        stackTrace TEXT NOT NULL,
+                        occurredAt INTEGER NOT NULL,
+                        appVersion TEXT NOT NULL,
+                        sent INTEGER NOT NULL DEFAULT 0
+                    )
+                    """.trimIndent()
+                )
             }
         }
 

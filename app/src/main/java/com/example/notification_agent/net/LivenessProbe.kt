@@ -14,6 +14,8 @@ import android.provider.Settings
 import android.util.Log
 import com.example.notification_agent.BuildConfig
 import com.example.notification_agent.bank.BankConfigRepository
+import com.example.notification_agent.data.CrashLogDao
+import com.example.notification_agent.data.CrashLogEntity
 import com.example.notification_agent.data.settings.AgentSettingsRepository
 import com.example.notification_agent.status.AgentStatusRepository
 import kotlinx.coroutines.Dispatchers
@@ -33,20 +35,20 @@ class LivenessProbe(
     private val context: Context,
     private val settings: AgentSettingsRepository,
     private val bankConfigs: BankConfigRepository,
-    private val status: AgentStatusRepository
+    private val status: AgentStatusRepository,
+    private val crashLogDao: CrashLogDao
 ) {
 
     suspend fun ping(): ProbeResult = withContext(Dispatchers.IO) {
         val current = settings.settings.first()
         val global = bankConfigs.getGlobal()
-        
+
         val probeUrl = current.probeUrl.ifBlank {
-            // Try to derive from global endpoint if probeUrl is blank
             if (global.endpointUrl.isNotBlank()) {
                 global.endpointUrl.replace("NotifyLineMessage", "NotifyHeartbeat")
             } else ""
         }
-        
+
         if (probeUrl.isBlank()) {
             val result = ProbeResult(false, -1, 0, "no url")
             status.recordProbe(result.ok, result.latencyMs)
@@ -54,8 +56,9 @@ class LivenessProbe(
         }
 
         val apiKey = global.apiKey
+        val pendingCrashes = crashLogDao.pendingLogs()
 
-        val body = buildJson().toRequestBody(JSON)
+        val body = buildJson(pendingCrashes).toRequestBody(JSON)
         val client = AgentHttpClient.client.newBuilder()
             .callTimeout(current.probeTimeoutMs.toLong(), TimeUnit.MILLISECONDS)
             .connectTimeout(current.probeTimeoutMs.toLong(), TimeUnit.MILLISECONDS)
@@ -86,27 +89,59 @@ class LivenessProbe(
             Log.w(TAG, "heartbeat failed: ${t.javaClass.simpleName}: ${t.message}")
             ProbeResult(false, -1, SystemClock.elapsedRealtime() - started, t.message)
         }
+
+        if (result.ok && pendingCrashes.isNotEmpty()) {
+            crashLogDao.markSent(pendingCrashes.map { it.id })
+            crashLogDao.deleteSentBefore(System.currentTimeMillis() - 48 * 3600 * 1000L)
+        }
+
         status.recordProbe(result.ok, result.latencyMs)
         result
     }
 
-    private fun buildJson(): String {
+    private fun buildJson(pendingCrashes: List<CrashLogEntity>): String {
         val cpu = Runtime.getRuntime().availableProcessors().toString()
         val memory = getMemoryInfo()
         val osVersion = Build.VERSION.RELEASE
         val appVersion = BuildConfig.VERSION_NAME
         val battery = getBatteryLevel().toString()
-
         val model = "${Build.MANUFACTURER} ${Build.MODEL}"
         val deviceId = Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID) ?: "unknown"
         val storage = getStorageInfo()
         val network = getNetworkType()
-        val uptime = (SystemClock.elapsedRealtime() / 3600000L).toString() // Uptime in hours
+        val uptime = (SystemClock.elapsedRealtime() / 3600000L).toString()
+        val crashesJson = buildCrashesJson(pendingCrashes)
 
-        return """
-            {"CPU":"$cpu","Memory":"$memory","OsVersion":"$osVersion","AppVersion":"$appVersion","Battery":"$battery","Model":"$model","DeviceId":"$deviceId","Storage":"$storage","Network":"$network","Uptime":"$uptime"}
-        """.trimIndent().replace("\n", "").replace(" ", "")
+        return """{"CPU":"$cpu","Memory":"$memory","OsVersion":"$osVersion","AppVersion":"$appVersion","Battery":"$battery","Model":"$model","DeviceId":"$deviceId","Storage":"$storage","Network":"$network","Uptime":"$uptime","crashes":$crashesJson}"""
     }
+
+    private fun buildCrashesJson(crashes: List<CrashLogEntity>): String {
+        if (crashes.isEmpty()) return "[]"
+        val sb = StringBuilder("[")
+        crashes.forEachIndexed { i, c ->
+            if (i > 0) sb.append(",")
+            sb.append("{")
+            sb.append("\"id\":${c.id},")
+            sb.append("\"level\":\"${escape(c.level)}\",")
+            sb.append("\"tag\":\"${escape(c.tag)}\",")
+            sb.append("\"thread\":\"${escape(c.thread)}\",")
+            sb.append("\"exception\":\"${escape(c.exceptionClass)}\",")
+            if (c.message != null) sb.append("\"message\":\"${escape(c.message)}\",") else sb.append("\"message\":null,")
+            sb.append("\"stackTrace\":\"${escape(c.stackTrace)}\",")
+            sb.append("\"occurredAt\":${c.occurredAt},")
+            sb.append("\"appVersion\":\"${escape(c.appVersion)}\"")
+            sb.append("}")
+        }
+        sb.append("]")
+        return sb.toString()
+    }
+
+    private fun escape(s: String): String = s
+        .replace("\\", "\\\\")
+        .replace("\"", "\\\"")
+        .replace("\n", "\\n")
+        .replace("\r", "\\r")
+        .replace("\t", "\\t")
 
     private fun getStorageInfo(): String {
         return try {
@@ -138,7 +173,7 @@ class LivenessProbe(
             reader.close()
             val match = Regex("(\\d+)").find(load)
             val kb = match?.value?.toLong() ?: 0L
-            (kb / 1024 / 1024).toString() // Total RAM in GB
+            (kb / 1024 / 1024).toString()
         } catch (e: Exception) {
             "0"
         }

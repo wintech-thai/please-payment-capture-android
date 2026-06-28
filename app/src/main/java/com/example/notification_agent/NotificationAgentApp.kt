@@ -33,6 +33,7 @@ class NotificationAgentApp : Application() {
             .addMigrations(AppDatabase.MIGRATION_1_2)
             .addMigrations(AppDatabase.MIGRATION_2_3)
             .addMigrations(AppDatabase.MIGRATION_3_4)
+            .addMigrations(AppDatabase.MIGRATION_4_5)
             .build()
     }
 
@@ -66,7 +67,8 @@ class NotificationAgentApp : Application() {
             context = applicationContext,
             settings = settingsRepository,
             bankConfigs = bankConfigRepository,
-            status = statusRepository
+            status = statusRepository,
+            crashLogDao = database.crashLogDao()
         )
     }
 
@@ -147,7 +149,7 @@ class NotificationAgentApp : Application() {
     override fun onCreate() {
         super.onCreate()
         com.example.notification_agent.bank.BankWebhookTester.instance = bankWebhookDispatcher
-        CrashReporter.initialize(this, deviceId)
+        CrashReporter.initialize(this, deviceId, database.crashLogDao())
 
         // Eagerly initialise the legacy dispatcher so its consumer coroutine
         // starts. Kept for backwards compatibility / instrumentation tests.

@@ -47,3 +47,21 @@ interface FilterRuleDao {
     @Query("DELETE FROM filter_rules WHERE sourceType = :type AND sourceKey = :key")
     suspend fun delete(type: SourceType, key: String)
 }
+
+@Dao
+interface CrashLogDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insert(log: CrashLogEntity): Long
+
+    @Query("SELECT * FROM crash_logs WHERE sent = 0 ORDER BY occurredAt ASC LIMIT 20")
+    suspend fun pendingLogs(): List<CrashLogEntity>
+
+    @Query("UPDATE crash_logs SET sent = 1 WHERE id IN (:ids)")
+    suspend fun markSent(ids: List<Long>)
+
+    @Query("DELETE FROM crash_logs WHERE sent = 1 AND occurredAt < :cutoff")
+    suspend fun deleteSentBefore(cutoff: Long)
+
+    @Query("DELETE FROM crash_logs WHERE occurredAt < :cutoff")
+    suspend fun deleteOlderThan(cutoff: Long)
+}
