@@ -63,12 +63,13 @@ class NotificationCaptureService : NotificationListenerService() {
         // Key on content + package only (NOT notification.key): banking apps
         // post the same payment under different keys (group summary + child,
         // rotating keys) and each would otherwise forward, double-sending to the
-        // bank endpoint. The 10s window still allows genuine repeat transactions.
+        // bank endpoint. 2s window covers notification update bursts (1-2s apart)
+        // while allowing genuine repeat transactions with the same amount.
         val contentKey = "$pkg:$title:$text"
         val now = System.currentTimeMillis()
         synchronized(processedCache) {
             val lastSeen = processedCache[contentKey]
-            if (lastSeen != null && (now - lastSeen) < 10_000) {
+            if (lastSeen != null && (now - lastSeen) < 2_000) {
                 // Suppressed duplicate — record it for the next heartbeat (debug).
                 DuplicateEventRegistry.record(
                     notificationKey = notification.key,
