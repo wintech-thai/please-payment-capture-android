@@ -101,30 +101,11 @@ class MessageRepository(
     suspend fun storeMessage(message: MessageEntity) {
         val decision = resolveDecision(message.sourceType, message.sourceKey)
         if (!decision.capture) return
-        val keyedMessage = message.copy(dedupeKey = buildDedupeKey(message))
-        val id = messageDao.insert(keyedMessage)
-        if (id == -1L) return
-        val storedMessage = keyedMessage.copy(id = id)
+        val id = messageDao.insert(message)
+        val storedMessage = message.copy(id = id)
         onCaptured(storedMessage)
         if (decision.forward) {
             onForward(storedMessage)
         }
     }
-
-    private fun buildDedupeKey(message: MessageEntity): String {
-        val normalizedTitle = normalizeForDedupe(message.title)
-        val normalizedText = normalizeForDedupe(message.text)
-        return listOf(
-            message.sourceType.name,
-            message.sourceKey,
-            normalizedTitle,
-            normalizedText
-        ).joinToString(separator = "|")
-    }
-
-    private fun normalizeForDedupe(value: String?): String = value
-        .orEmpty()
-        .trim()
-        .replace(Regex("\\s+"), " ")
-        .lowercase()
 }

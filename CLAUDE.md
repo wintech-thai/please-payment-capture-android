@@ -19,8 +19,8 @@ Native Android app that captures incoming notifications and SMS messages, applie
 
 | Layer | Key classes |
 |---|---|
-| Data | Room entities, DAOs, `AppDatabase` (v5), `MessageRepository` |
-| System | `NotificationCaptureService` (NotificationListenerService) |
+| Data | Room entities, DAOs, `AppDatabase` (v6), `MessageRepository` |
+| System | `NotificationCaptureService` (NotificationListenerService); `DuplicateEventRegistry` (in-memory suppressed-duplicate buffer for heartbeat debug) |
 | System | `SmsCaptureReceiver` (BroadcastReceiver) |
 | Network | `LivenessProbe` — heartbeat POST with device telemetry + crash log flush |
 | Network | `BankWebhookDispatcher` — primary multi-bank payment forwarding |
@@ -32,9 +32,18 @@ Native Android app that captures incoming notifications and SMS messages, applie
 
 ### Room Database
 
-- **Version**: 5
+- **Version**: 6
 - **Entities**: `MessageEntity` (messages), `FilterRuleEntity` (filter_rules), `CrashLogEntity` (crash_logs)
-- **Migrations**: 1→2 (forwardToWebhook column), 2→3 (dedupeKey), 3→4 (rebuild messages table), 4→5 (crash_logs table)
+- **Migrations**: 1→2 (forwardToWebhook column), 2→3 (dedupeKey), 3→4 (rebuild messages table), 4→5 (crash_logs table), 5→6 (drop dedupeKey column + index)
+
+### Deduplication
+
+- **No persistent (DB) dedup.** There is no unique index on messages; the `dedupeKey` column was removed in v6.
+- Duplicate notifications (from rapid notification *updates*, ~1–2 s apart) are filtered **in-memory** by `NotificationCaptureService` using a `processedCache` keyed on `notification.key:title:text` with a **10-second** window.
+- The content filter (`LineBankPaymentParser`) runs **before** the dedup cache, so only filter-matching payment notifications can ever occupy a cache slot — a non-matching update can never block a matching one. Among same-key updates, whichever matches the filter is the one forwarded (could be the 1st or the 2nd/updated one).
+- Suppressed duplicates are recorded in `DuplicateEventRegistry` (in-memory ring buffer, max 100) and flushed as a `duplicates` array on the next `LivenessProbe` heartbeat for debugging; removed from the buffer on HTTP 2xx.
+- **SMS has no dedup** — the OS delivers one `SMS_RECEIVED` broadcast per message and `SmsCaptureReceiver` assembles multipart segments, so duplicates do not occur.
+- Do **not** reintroduce DB-level dedup keyed on content: legitimate repeat transactions (e.g. identical bank amounts) would collide and be silently dropped.
 
 ## Key Conventions
 
@@ -94,9 +103,23 @@ Native Android app that captures incoming notifications and SMS messages, applie
       "occurredAt": 1751053100000,
       "appVersion": "1.2.3"
     }
+  ],
+  "duplicates": [
+    {
+      "notificationKey": "0|jp.naver.line.android|123|...",
+      "sourceKey": "jp.naver.line.android",
+      "title": "ธนาคารกสิกรไทย",
+      "text": "เงินเข้า 100.00 ...",
+      "firstSeenAt": 1751053100000,
+      "duplicateAt": 1751053101500
+    }
   ]
 }
 ```
+
+The `duplicates` array carries notifications that were suppressed by the
+in-memory dedup window (see Deduplication) — debug-only data flushed on the
+next heartbeat and removed from the in-memory buffer on HTTP 2xx.
 
 ## Things to Avoid
 

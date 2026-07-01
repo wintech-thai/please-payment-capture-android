@@ -17,7 +17,7 @@ class SourceTypeConverter {
 
 @Database(
     entities = [MessageEntity::class, FilterRuleEntity::class, CrashLogEntity::class],
-    version = 5,
+    version = 6,
     exportSchema = false
 )
 @TypeConverters(SourceTypeConverter::class)
@@ -131,6 +131,37 @@ abstract class AppDatabase : RoomDatabase() {
                 db.execSQL("DROP TABLE messages")
                 db.execSQL("ALTER TABLE messages_new RENAME TO messages")
                 db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_messages_dedupeKey ON messages(dedupeKey)")
+            }
+        }
+
+        // Drops persistent dedup: removes the unique dedupeKey index and column.
+        // Duplicate notifications are handled in-memory by NotificationCaptureService
+        // (10s window); SMS does not duplicate, so no dedup is needed.
+        val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("DROP INDEX IF EXISTS index_messages_dedupeKey")
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS messages_new (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        sourceType TEXT NOT NULL,
+                        sourceKey TEXT NOT NULL,
+                        sourceLabel TEXT,
+                        title TEXT,
+                        text TEXT,
+                        timestamp INTEGER NOT NULL
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    """
+                    INSERT INTO messages_new(id, sourceType, sourceKey, sourceLabel, title, text, timestamp)
+                    SELECT id, sourceType, sourceKey, sourceLabel, title, text, timestamp
+                    FROM messages
+                    """.trimIndent()
+                )
+                db.execSQL("DROP TABLE messages")
+                db.execSQL("ALTER TABLE messages_new RENAME TO messages")
             }
         }
     }

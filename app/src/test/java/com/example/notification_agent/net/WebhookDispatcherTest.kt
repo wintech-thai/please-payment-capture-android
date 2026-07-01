@@ -13,8 +13,8 @@ class WebhookDispatcherTest {
 
     @Test
     fun buildJsonIncludesNotificationDebugWhenProvided() {
-        val payload = WebhookDispatcher.buildJson(
-            m = MessageEntity(
+        val payload = WebhookPayloadBuilder.buildPayload(
+            message = MessageEntity(
                 id = 13,
                 sourceType = SourceType.NOTIFICATION,
                 sourceKey = "jp.naver.line.android",
@@ -65,8 +65,8 @@ class WebhookDispatcherTest {
 
     @Test
     fun buildJsonOmitsNotificationDebugWhenUnavailable() {
-        val payload = WebhookDispatcher.buildJson(
-            m = MessageEntity(
+        val payload = WebhookPayloadBuilder.buildPayload(
+            message = MessageEntity(
                 id = 1,
                 sourceType = SourceType.SMS,
                 sourceKey = "+66800000000",

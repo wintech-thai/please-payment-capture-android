@@ -100,6 +100,9 @@ extensions.configure<ApplicationExtension> {
         viewBinding = true
         buildConfig = true
     }
+    testOptions {
+        unitTests.isReturnDefaultValues = true
+    }
 }
 
 kotlin {

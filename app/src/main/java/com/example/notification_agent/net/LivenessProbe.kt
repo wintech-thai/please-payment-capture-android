@@ -17,6 +17,8 @@ import com.example.notification_agent.bank.BankConfigRepository
 import com.example.notification_agent.data.CrashLogDao
 import com.example.notification_agent.data.CrashLogEntity
 import com.example.notification_agent.data.settings.AgentSettingsRepository
+import com.example.notification_agent.service.DuplicateEvent
+import com.example.notification_agent.service.DuplicateEventRegistry
 import com.example.notification_agent.status.AgentStatusRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -57,8 +59,9 @@ class LivenessProbe(
 
         val apiKey = global.apiKey
         val pendingCrashes = crashLogDao.pendingLogs()
+        val pendingDuplicates = DuplicateEventRegistry.snapshot()
 
-        val body = buildJson(pendingCrashes).toRequestBody(JSON)
+        val body = buildJson(pendingCrashes, pendingDuplicates).toRequestBody(JSON)
         val client = AgentHttpClient.client.newBuilder()
             .callTimeout(current.probeTimeoutMs.toLong(), TimeUnit.MILLISECONDS)
             .connectTimeout(current.probeTimeoutMs.toLong(), TimeUnit.MILLISECONDS)
@@ -90,16 +93,24 @@ class LivenessProbe(
             ProbeResult(false, -1, SystemClock.elapsedRealtime() - started, t.message)
         }
 
-        if (result.ok && pendingCrashes.isNotEmpty()) {
-            crashLogDao.markSent(pendingCrashes.map { it.id })
-            crashLogDao.deleteSentBefore(System.currentTimeMillis() - 48 * 3600 * 1000L)
+        if (result.ok) {
+            if (pendingCrashes.isNotEmpty()) {
+                crashLogDao.markSent(pendingCrashes.map { it.id })
+                crashLogDao.deleteSentBefore(System.currentTimeMillis() - 48 * 3600 * 1000L)
+            }
+            if (pendingDuplicates.isNotEmpty()) {
+                DuplicateEventRegistry.remove(pendingDuplicates.map { it.id })
+            }
         }
 
         status.recordProbe(result.ok, result.latencyMs)
         result
     }
 
-    private fun buildJson(pendingCrashes: List<CrashLogEntity>): String {
+    private fun buildJson(
+        pendingCrashes: List<CrashLogEntity>,
+        pendingDuplicates: List<DuplicateEvent>
+    ): String {
         val cpu = Runtime.getRuntime().availableProcessors().toString()
         val memory = getMemoryInfo()
         val osVersion = Build.VERSION.RELEASE
@@ -111,8 +122,27 @@ class LivenessProbe(
         val network = getNetworkType()
         val uptime = (SystemClock.elapsedRealtime() / 3600000L).toString()
         val crashesJson = buildCrashesJson(pendingCrashes)
+        val duplicatesJson = buildDuplicatesJson(pendingDuplicates)
 
-        return """{"CPU":"$cpu","Memory":"$memory","OsVersion":"$osVersion","AppVersion":"$appVersion","Battery":"$battery","Model":"$model","DeviceId":"$deviceId","Storage":"$storage","Network":"$network","Uptime":"$uptime","crashes":$crashesJson}"""
+        return """{"CPU":"$cpu","Memory":"$memory","OsVersion":"$osVersion","AppVersion":"$appVersion","Battery":"$battery","Model":"$model","DeviceId":"$deviceId","Storage":"$storage","Network":"$network","Uptime":"$uptime","crashes":$crashesJson,"duplicates":$duplicatesJson}"""
+    }
+
+    private fun buildDuplicatesJson(duplicates: List<DuplicateEvent>): String {
+        if (duplicates.isEmpty()) return "[]"
+        val sb = StringBuilder("[")
+        duplicates.forEachIndexed { i, d ->
+            if (i > 0) sb.append(",")
+            sb.append("{")
+            sb.append("\"notificationKey\":\"${escape(d.notificationKey)}\",")
+            sb.append("\"sourceKey\":\"${escape(d.sourceKey)}\",")
+            if (d.title != null) sb.append("\"title\":\"${escape(d.title)}\",") else sb.append("\"title\":null,")
+            if (d.text != null) sb.append("\"text\":\"${escape(d.text)}\",") else sb.append("\"text\":null,")
+            sb.append("\"firstSeenAt\":${d.firstSeenAt},")
+            sb.append("\"duplicateAt\":${d.duplicateAt}")
+            sb.append("}")
+        }
+        sb.append("]")
+        return sb.toString()
     }
 
     private fun buildCrashesJson(crashes: List<CrashLogEntity>): String {

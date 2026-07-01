@@ -65,6 +65,15 @@ class NotificationCaptureService : NotificationListenerService() {
         synchronized(processedCache) {
             val lastSeen = processedCache[contentKey]
             if (lastSeen != null && (now - lastSeen) < 10_000) {
+                // Suppressed duplicate — record it for the next heartbeat (debug).
+                DuplicateEventRegistry.record(
+                    notificationKey = notification.key,
+                    sourceKey = pkg,
+                    title = title,
+                    text = text,
+                    firstSeenAt = lastSeen,
+                    duplicateAt = now
+                )
                 return
             }
             processedCache[contentKey] = now

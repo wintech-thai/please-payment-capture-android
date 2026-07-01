@@ -11,7 +11,7 @@ interface MessageDao {
     @Query("SELECT * FROM messages ORDER BY timestamp DESC LIMIT 500")
     fun observeRecent(): Flow<List<MessageEntity>>
 
-    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    @Insert
     suspend fun insert(message: MessageEntity): Long
 
     @Query("DELETE FROM messages WHERE timestamp < :cutoffTimestamp")
