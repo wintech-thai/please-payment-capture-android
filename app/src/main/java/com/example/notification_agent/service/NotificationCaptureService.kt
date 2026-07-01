@@ -60,7 +60,11 @@ class NotificationCaptureService : NotificationListenerService() {
         val pkg = notification.packageName
         if (LineBankPaymentParser.parseNotification(pkg, title, text) == null) return
 
-        val contentKey = "${notification.key}:$title:$text"
+        // Key on content + package only (NOT notification.key): banking apps
+        // post the same payment under different keys (group summary + child,
+        // rotating keys) and each would otherwise forward, double-sending to the
+        // bank endpoint. The 10s window still allows genuine repeat transactions.
+        val contentKey = "$pkg:$title:$text"
         val now = System.currentTimeMillis()
         synchronized(processedCache) {
             val lastSeen = processedCache[contentKey]
